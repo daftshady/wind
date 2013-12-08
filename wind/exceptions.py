@@ -14,11 +14,16 @@ class WindException(Exception):
     pass
 
 
-class ServerException(WindException):
-    """Server exception occured"""
+class ServerError(WindException):
+    """Server error occured"""
     pass
 
 
-class SocketException(ServerException):
-    """Socket exception occured"""
+class SocketError(ServerError):
+    """Socket error occured"""
+    pass
+
+
+class PollError(WindException):
+    """Poll error occured"""
     pass
