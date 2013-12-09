@@ -27,3 +27,8 @@ class SocketError(ServerError):
 class PollError(WindException):
     """Poll error occured"""
     pass
+
+
+class LooperError(WindException):
+    """Looper error occured"""
+    pass
