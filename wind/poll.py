@@ -29,10 +29,10 @@ class BasePoll(object):
     def fromfd(self, fd):
         pass
 
-    def modify(self, fd, events):
+    def modify(self, fd, event_mask):
         pass
 
-    def register(self, fd, events):
+    def register(self, fd, event_mask):
         raise NotImplemented("Should implement `register` method")
     
     def unregister(self, fd):
