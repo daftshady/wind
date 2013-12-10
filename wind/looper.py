@@ -12,7 +12,7 @@ import errno
 import threading
 
 from wind.exceptions import LooperError
-from wind.poll import PollEvents
+from wind.poll import PollEvents, Select
 
 # XXX : Remove deep interaction of `looper` with `server`
 
@@ -27,31 +27,11 @@ def _eintr_retry(func, *args):
                 raise
 
 
-class BaseLooper(object):
-    _singleton_lock = threading.Lock()
-
-    def __init__(self):
-        pass
-
-    @staticmethod
-    def instance():
-        """Initialize singleton instance of Looper
-        with double-checked locking
-        
-        Returns singleton looper in `main thread`
-        """
-        if not hasattr(BaseLooper, '_instance'):
-            with BaseLooper._singleton_lock:
-                if not hasattr(BaseLooper, '_instance'):
-                    BaseLooper._instance = BaseLooper()
-        return BaseLooper._instance
-
-
-Looper = BaseLooper
-
-class PollLooper(BaseLooper):
+class PollLooper(object):
     
     _DEFAULT_POLL_TIMEOUT = 1000
+
+    _singleton_lock = threading.Lock()
 
     def __init__(self, driver):
         """Event driven io loop using `poll`
@@ -63,6 +43,21 @@ class PollLooper(BaseLooper):
         self._handlers = {}
         self._events = {}
         self._driver = driver
+
+    @staticmethod
+    def instance():
+        """Initialize singleton instance of Looper
+        with double-checked locking
+        
+        Returns singleton looper in `main thread`
+        """
+        if not hasattr(PollLooper, '_instance'):
+            with PollLooper._singleton_lock:
+                if not hasattr(PollLooper, '_instance'):
+                    # Choose suitable driver here.
+                    # Temporarily, we will use `select` for test.
+                    PollLooper._instance = PollLooper(Select())
+        return PollLooper._instance
 
     def attach_handler(self, fd, handler, event_mask):
         self._handlers[fd] = handler
@@ -76,16 +71,16 @@ class PollLooper(BaseLooper):
         self._handlers.pop(fd, None)
 
     def run(self, poll_timeout=_DEFAULT_POLL_TIMEOUT):
-        self.running = True
+        self._running = True
         while True:
-            if not self.running:
+            if not self._running:
                 break
             
             # `List` of (fd, event) tuple
             events = _eintr_retry(self._driver.poll, poll_timeout)
             self._events.update(events)
 
-            while events:
+            while self._events:
                 fd, event_mask = self._events.popitem()
                 handler = self._handlers.get(fd, None)
                 if handler is None:
@@ -98,9 +93,6 @@ class PollLooper(BaseLooper):
                     pass
 
     def stop(self):
-        self.running = False
+        self._running = False
 
-
-class SimpleLooper(BaseLooper):
-    pass
-  
+Looper = PollLooper

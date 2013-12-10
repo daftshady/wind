@@ -109,5 +109,5 @@ class KQueue(BasePoll):
     pass
 
 
-class Epoll(BasePoll);
+class Epoll(BasePoll):
     pass
