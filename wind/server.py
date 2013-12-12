@@ -66,12 +66,16 @@ class TCPServer(BaseServer):
         """Binds socket and actually run looper"""
         self.bind(address, port)
 
-    def run_simple(self, address, port):
+    def run_simple(self, address, port, single_handler):
         """Simply run tcp server with single-process"""
         pass
 
 
 class UDPServer(BaseServer):
     # TODO : Planned to be implemented later.
+    pass
+
+
+class HTTPServer(TCPServer):
     pass
 
