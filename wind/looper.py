@@ -76,7 +76,7 @@ class PollLooper(object):
             if not self._running:
                 break
             
-            # `List` of (fd, event) tuple
+            # Poll returns `List` of (fd, event) tuple
             events = _eintr_retry(self._driver.poll, poll_timeout)
             self._events.update(events)
 

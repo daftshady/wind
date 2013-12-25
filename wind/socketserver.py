@@ -74,8 +74,3 @@ class TCPServer(BaseServer):
 class UDPServer(BaseServer):
     # TODO : Planned to be implemented later.
     pass
-
-
-class HTTPServer(TCPServer):
-    pass
-
