@@ -32,3 +32,9 @@ class PollError(WindException):
 class LooperError(WindException):
     """Looper error occured"""
     pass
+
+
+class StreamError(WindException):
+    """Stream error occured"""
+    pass
+
