@@ -12,6 +12,7 @@ import collections
 
 class FlexibleDeque(collections.deque):
     """Deque for easily handling separable object like `BaseString`."""
+
     def gather(self, chunk_size, left=True):
         """Gather string to side of Deque by `chunk_size`
         This method assumes that all items in `deque` are `BaseString`
@@ -36,20 +37,28 @@ class FlexibleDeque(collections.deque):
 
         while self:
             data = pop_()
-            if counted < chunk_size:
+            len_ = len(data)
+            if counted + len_ < chunk_size:
                 append_chunk_(data)
-                counted += len(data)
+                counted += len_ 
+
                 if not self:
                     append_(''.join(chunks))
-                continue
-            
-            slash = chunk_size - counted
-            if not left:
-                slash = len(data) - slash
-            append_chunk_(data[:slash])
-            append_(data[slash:])
-            append_(''.join(chunks))
-            break
+                    break
+            else:
+                slash = counted + len_ - chunk_size
+                if left:
+                    slash = len_ - slash
+                    append_chunk_(data[:slash])
+                    if slash < len_:
+                        append_(data[slash:])
+                else:
+                    append_chunk_(data[slash:])
+                    if slash < len_:
+                        append_(data[:slash])
+
+                append_(''.join(chunks))
+                break
 
     def throw(self, chunk_size, left=True):
         """Gather by `chunk_size` and pop from deque.
