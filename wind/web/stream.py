@@ -121,7 +121,7 @@ class BaseStream(object):
                     # Found delimiter
                     return self._pop_chunk(pos + len(delimiter))
                 
-                if len(self_read_buffer) == 1:
+                if len(self._read_buffer) == 1:
                     # No delimiter found in whole read buffer.
                     break
 
