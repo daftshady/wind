@@ -1,8 +1,8 @@
 # -*- coding:utf-8 -*-
 """
 
-    wind.server
-    ~~~~~~~~~~~
+    wind.socketserver
+    ~~~~~~~~~~~~~~~~~
 
     Base server and TCP implementations.
 
@@ -13,6 +13,12 @@ import socket
 import errno
 from wind.exceptions import SocketException
 from wind.looper import PollLooper
+
+
+# Defines frequently used collection of socket.error
+# XXX: Should this tuples be here?
+EWOULDBLOCK = (errno.EWOULDBLOCK, errno.EAGAIN)
+ECONNRESET = (errno.ECONNRESET, errno.ECONNABORTED, errno.EPIPE)
 
 
 class BaseServer(object):
