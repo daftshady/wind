@@ -10,6 +10,7 @@
 import errno
 import socket
 from wind.poll import PollEvents
+from wind.looper import PollLooper
 from wind.exceptions import StreamError
 from wind.web.datastructures import FlexibleDeque
 from wind.socketserver import EWOULDBLOCK, ECONNRESET
@@ -57,12 +58,13 @@ class BaseStream(object):
 
     """
 
-    def __init__(self, chunk_size=4096):
+    def __init__(self, looper=None, chunk_size=4096):
         """Initialize and open base stream.
         
         @param chunk_size : chunk size for read.
 
         """
+        self._looper = looper or PollLooper.instance()
         self._read_buffer = StreamBuffer() 
         self._write_buffer = StreamBuffer() 
         self._read_chunk_size = chunk_size
@@ -75,6 +77,9 @@ class BaseStream(object):
         self._bytes_to_read = None
         self._delimiter = None
 
+        # Saves asynchronous event handled by `looper`. (PollEvents)
+        self._handler_event = None
+
         self.open()
     
     def open(self):
@@ -83,6 +88,10 @@ class BaseStream(object):
     def close(self):
         self._is_opened = False
     
+    def fileno(self):
+        """Returns fd of socket or file"""
+        raise NotImplementedError
+
     @property
     def opened(self):
         return self._is_opened
@@ -90,7 +99,15 @@ class BaseStream(object):
     @property
     def closed(self):
         return not self._is_opened
+    
+    @property
+    def reading(self):
+        raise NotImplementedError
 
+    @property
+    def writing(self):
+        raise NotImplementedError
+    
     def read(self):
         self._process_read()
 
@@ -208,6 +225,25 @@ class BaseStream(object):
     def _write_to_fd(self):
         raise NotImplementedError()
     
+    def event_handler(self, fd, events):
+        """Handler which will attached to `looper`"""
+        try:
+            if events & PollEvents.READ:
+                self._handle_read()
+
+            if events & PollEvents.WRITE:
+                self._handle_write()
+            
+            if events & PollEvents.ERROR:
+                # TODO: Should handle PollEvents.ERROR
+                pass
+
+            if self.closed:
+                return
+
+        except Exception as e:
+            raise StreamError(e)
+
     def _handle_write(self):
         """Handle write process when fd is available.
         This method will be passed to event handler of `looper`
@@ -221,7 +257,20 @@ class BaseStream(object):
         
         """
         self._process_read()
-
+    
+    def _attach_stream_handler(self, event_mask):
+        """Attach handler to `looper` for the purpose of handling
+        asynchronous reading and writing"""
+        if self._handler_event is None:
+            # Attach new handler
+            self._handler_event = event_mask | PollEvents.ERROR
+            self._looper.attach_handler(
+                self.fileno(), self._handler_event, self.event_handler)
+        elif not self._handler_event & event_mask:
+            # Update event of existing handler
+            self._handler_event = event_mask | self._handler_event
+            self._looper.update_handler(self.fileno(), event_mask)
+ 
 
 class SocketStream(BaseStream):
     def __init__(self, socket, *args, **kwargs):
@@ -230,6 +279,9 @@ class SocketStream(BaseStream):
                 'SocketStream can only be initialized with `socket.socket`')
         self.socket = socket
         super(SocketStream, self).__init__(*args, **kwargs)
+    
+    def fileno(self):
+        return self.socket.fileno()
 
     def _read_from_fd(self):
         try:
@@ -255,6 +307,9 @@ class FileStream(BaseStream):
                 'FileStream can only be initialized with `file`')
         self.file_ = file_
         super(FileStream, self).__init__(*args, **kwargs)
+    
+    def fileno(self):
+        return self.file_.fileno()
 
     def _read_from_fd(self):
         return self.file_.read(self._read_chunk_size)
