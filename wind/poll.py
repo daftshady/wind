@@ -57,9 +57,9 @@ class Select(BasePoll):
         if fd in self.fds():
             raise PollError('Fd %d already registered' % fd)
 
-        if event_mask == PollEvents.READ or event_mask == PollEvents.ERROR:
+        if event_mask & PollEvents.READ or event_mask & PollEvents.ERROR:
             self.read_fds.add(fd)
-        elif event_mask == PollEvents.WRITE:
+        elif event_mask & PollEvents.WRITE:
             self.write_fds.add(fd)
         else:
             raise PollError('Cannot register undefined event')

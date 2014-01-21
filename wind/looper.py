@@ -59,7 +59,7 @@ class PollLooper(object):
                     PollLooper._instance = PollLooper(Select())
         return PollLooper._instance
 
-    def attach_handler(self, fd, handler, event_mask):
+    def attach_handler(self, fd, event_mask, handler):
         self._handlers[fd] = handler
         self._driver.register(fd, event_mask)
     
