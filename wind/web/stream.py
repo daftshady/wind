@@ -47,7 +47,6 @@ class BaseStream(object):
     - __init__(chunk_size=4096)
     - open()
     - close()
-    - read()
     - read_bytes(num_bytes)
     - read_until(delimiter)
     - write(chunk)
@@ -55,7 +54,7 @@ class BaseStream(object):
     Methods should be overrided
 
     - _read_from_fd()
-    - _write_to_fd()
+    - _write_to_fd(chunk)
 
 
     """
@@ -84,6 +83,7 @@ class BaseStream(object):
 
         self._read_callback = None
         self._write_callback = None
+        self._close_callback = None
 
         self.open()
     
@@ -91,31 +91,33 @@ class BaseStream(object):
         self._is_opened = True
 
     def close(self):
-        self._is_opened = False
+        if not self.closed:
+            if self._handler_event is not None:
+                slef._handler_event = None
+                self._looper.remove_handler(self.fileno())
+            self._is_opened = False
+            self._close_fd()
+            self._run_close_callback()
     
+    def _close_fd(self):
+        raise NotImplementedError
+
     def fileno(self):
         """Returns fd of socket or file"""
         raise NotImplementedError
 
-    @property
-    def opened(self):
-        return self._is_opened
-    
     @property
     def closed(self):
         return not self._is_opened
     
     @property
     def reading(self):
-        raise NotImplementedError
+        return self._read_callback is not None
 
     @property
     def writing(self):
-        raise NotImplementedError
+        return self._write_callback is not None
     
-    def read(self):
-        self._process_read()
-
     def read_bytes(self, bytes_to_read, callback):
         """Read `bytes_to_read` bytes from file"""
         if not isinstance(bytes_to_read, int):
@@ -139,7 +141,7 @@ class BaseStream(object):
 
     def _process_read(self):
         """fd -> read buffer -> memory"""
-        while self.opened:
+        while not self.closed:
             if self._to_read_buffer() == 0:
                 # End of read
                 break
@@ -162,23 +164,25 @@ class BaseStream(object):
         return len(chunk)
 
     def _read(self):
-        """Read chunk from `_read_buffer` and Returns chunk.
+        """Read chunk from `_read_buffer` and run callback with that chunk.
 
         """
-        # XXX: handle delimenter
+        self._raise_if_closed()
+
+        # XXX: handle all expectable cases
         read_bytes = 0
-        if self.bytes_to_read is not None:
-            read_bytes = min(self.bytes_to_read, self._read_buffer_bytes)
+        if self._bytes_to_read is not None:
+            read_bytes = min(self._bytes_to_read, self._read_buffer_bytes)
             self._run_callback(
-                self._read_callback, self._pop_chunk(read_bytes))
+                self._pop_callback(), self._pop_chunk(read_bytes))
         
-        if self.delimiter is not None:
+        if self._delimiter is not None:
             while True:
                 pos = self._read_buffer[0].find(self.delimiter)
                 if pos != -1:
                     # Found delimiter
                     self._run_callback(
-                        self._read_callback, 
+                        self._pop_callback(), 
                         self._pop_chunk(pos + len(self.delimiter)))
                 
                 if len(self._read_buffer) == 1:
@@ -189,8 +193,6 @@ class BaseStream(object):
                 self._read_buffer.gather(
                     len(self._read_buffer[0] + self._read_buffer[1]))
             
-        self._run_callback(
-            self._read_callback, self._pop_chunk(self._read_buffer_bytes))
     
     def _pop_chunk(self, read_bytes):
         """Pop chunk from `_read_buffer` and Returns chunk."""
@@ -206,10 +208,13 @@ class BaseStream(object):
             raise StreamError('Can write only chunk of `bytes`')
 
         self._add_callback(callback, read=False)
-        self._process_write()
+        self._process_write(chunk)
     
-    def _process_write(self):
-        self._to_write_buffer()
+    def _process_write(self, chunk, partial=False):
+        self._raise_if_closed()
+
+        if not partial:
+            self._to_write_buffer(chunk)
 
         while self._write_buffer:
             try:
@@ -217,10 +222,9 @@ class BaseStream(object):
                 if num_bytes == 0:
                     self._write_buffer.frozen = True
                     break
-
                 self._write_buffer.frozen = False
 
-                # Partial write is handled here.
+                # Partial writing is handled here.
                 self._write_buffer.gather(num_bytes)
                 self._write_buffer.popleft()
             except socket.error as e:
@@ -231,17 +235,45 @@ class BaseStream(object):
                     self.close()
                 else:
                     raise StreamError(e)
-                return
+                break
 
         # Post write process.
+        if self._write_buffer and not partial:
+            # Writing is not completed at one go
+            self._attach_stream_handler(PollEvents.WRITE)
+        elif not self._write_buffer:
+            self._run_callback(self._pop_callback(read=False))
 
-    def _to_write_buffer(self):
-        for i in range(0, len(chunk), self._write_chunk_size):
-            self._write_buffer.append(chunk[0:i + self._write_chunk_size])
+    def _to_write_buffer(self, chunk):
+        """Fill `_write_buffer` after dividing `chunk` with 
+        `_write_chunk_size` bytes blocks.
+        
+        """
+        
+        if chunk:
+            for i in range(0, len(chunk), self._write_chunk_size):
+                self._write_buffer.append(chunk[0:i + self._write_chunk_size])
 
-    def _write_to_fd(self):
+    def _write_to_fd(self, chunk):
         raise NotImplementedError()
     
+    def _raise_if_closed(self):
+        if self.closed:
+            raise StreamError('Cannot read because stream is already closed')
+       
+    def _pop_callback(self, read=True):
+        """Returns saved callback and clear read or write callback
+
+        @param read (optional): True if read callback else write callback.
+        """
+        if read:
+            callback = self._read_callback
+            self._read_callback = None
+        else:
+            callback = self._write_callback
+            self._write_callback = None
+        return callback
+
     def _add_callback(self, callback, read=True):
         """Check whether passed callback has acceptable form.
         We imported `inspect` here because it's not on the mainstream.
@@ -257,7 +289,7 @@ class BaseStream(object):
             raise StreamError('Stream callback is not callable')
 
         spec = getargspec(callback)
-        if not spec.args or not isinstance(spec.defaults, tuple):
+        if not spec.args:
             raise StreamError(
                 'Should provide room for chunk in stream callback')
         
@@ -265,6 +297,22 @@ class BaseStream(object):
             self._read_callback = callback
         else:
             self._write_callback = callback
+
+    def _run_callback(self, callback, *args):
+        """Immediately run saved callback"""
+        try:
+            callback(*args)
+        except Exception as e:
+            self.close()
+            raise StreamError(e)
+    
+    def _run_close_callback(self):
+        if self.closed:
+            if self._close_callback is not None:
+                callback = self._close_callback
+                self._run_callback(callback)
+                self._close_callback = None
+                self._read_callback = self._write_callback = None
 
     def event_handler(self, fd, events):
         """Handler which will attached to `looper`"""
@@ -290,14 +338,20 @@ class BaseStream(object):
         This method will be passed to event handler of `looper`
         
         """
-        self._process_write()
+        try:
+            self._process_write()
+        except Exception:
+            self.close()
 
     def _handle_read(self):
         """Handle read process when fd is available.
         This method will be passed to event handler of `looper`
         
         """
-        self._process_read()
+        try:
+            self._process_read()
+        except Exception:
+            self.close()
     
     def _attach_stream_handler(self, event_mask):
         """Attach handler to `looper` for the purpose of handling
@@ -311,14 +365,6 @@ class BaseStream(object):
             # Update event of existing handler
             self._handler_event |= event_mask
             self._looper.update_handler(self.fileno(), event_mask)
-
-    def _run_callback(self, callback, *args):
-        """Immediately run io callback"""
-        try:
-            callback(*args)
-        except Exception as e:
-            self.close()
-            raise StreamError(e)
  
 
 class SocketStream(BaseStream):
@@ -348,6 +394,10 @@ class SocketStream(BaseStream):
     def _write_to_fd(self, chunk):
         self.socket.send(chunk)
 
+    def _close_fd(self):
+        self.socket.close()
+        slef.socket = None
+
 
 class FileStream(BaseStream):
     def __init__(self, file_, *args, **kwargs):
@@ -368,4 +418,8 @@ class FileStream(BaseStream):
             self.file_.write(chunk)
         except IOError as e:
             raise StreamError(e)
+    
+    def _close_fd(self):
+        self.file_.close()
+        self.file_ = None
 
