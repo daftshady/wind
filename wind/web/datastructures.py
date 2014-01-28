@@ -1,7 +1,7 @@
 """
 
-    wind.web.datastructure
-    ~~~~~~~~~~~~~~~~~~~~~~
+    wind.web.datastructures
+    ~~~~~~~~~~~~~~~~~~~~~~~
 
     Useful datastructures.
 
@@ -77,3 +77,47 @@ class FlexibleDeque(collections.deque):
             return '%s()' % (name)
         return '%s(%s)' % (name, str(list(self)))
 
+
+class FlexibleDict(collections.MutableMapping):
+    """Provides flexible transformations to dict `key`"""
+    def __init__(self, dict_={}):
+        # `_store` stores (key, value) tuple on each key.
+        self._store = {}
+        self.update(dict_)
+
+    def _transform(self, key):
+        return key
+
+    def __getitem__(self, key):
+        return self._store.get(self._transform(key))[1]
+    
+    def __setitem__(self, key, value):
+        self._store[self._transform(key)] = (key, value)
+
+    def __delitem__(self, key):
+        del self._store[self._transform(key)]
+
+    def __len__(self, key):
+        return len(self._store)
+
+    def __repr__(self):
+        return '%s(%s)' % (self.__class__.__name__, dict(self.items))
+
+
+class CaseInsensitiveDict(FlexibleDict):
+    """Case-insensitivie `Dict`.
+    Keys of this dict object will be case-insensitive.
+    
+        >>> dict_ = CaseInsensitvieDict()
+        >>> dict_['club'] = 'octagon'
+        >>> dict_.get['CLUB']
+        octagon
+        >>> dict_.get('CluB') == dict_.get('ClUb')
+        True
+
+    """
+    def _transform(self, key):
+        return key.lower()
+
+    def __iter__(self):
+        return (original_key for original_key, value in self._store.values())
