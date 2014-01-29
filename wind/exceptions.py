@@ -38,3 +38,4 @@ class StreamError(WindException):
     """Stream error occured"""
     pass
 
+

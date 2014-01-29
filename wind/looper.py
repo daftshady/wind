@@ -9,6 +9,7 @@
 """
 
 import errno
+import select
 import threading
 
 from wind.exceptions import LooperError
@@ -90,7 +91,7 @@ class PollLooper(object):
                     handler(fd, event_mask)
                 except TypeError:
                     # XXX : should be handled properly
-                    pass
+                    raise
 
     def stop(self):
         self._running = False

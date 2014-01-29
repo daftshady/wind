@@ -108,7 +108,7 @@ class TCPServer(BaseServer):
                 
     def _attach_accept_handler(self, socket_, callback):
         """Attach `_event_handler` to socket"""
-        def _accept_handler(self, fd, event_mask):
+        def _accept_handler(fd, event_mask):
             """Handle socket accept and execute callback"""
             while True:
                 try:
@@ -121,9 +121,11 @@ class TCPServer(BaseServer):
                 try:
                     callback(conn, address)
                 except TypeError:
-                    raise ServerError('Accept handler callback is not vaild form')
+                    #raise ServerError('Accept handler callback is not vaild form')
+                    raise
+
         self.looper.attach_handler(
-            socket_.fileno(), PollEvents.READ, self._connection_handler)
+            socket_.fileno(), PollEvents.READ, _accept_handler)
     
     def _connection_handler(self, conn, address):
         raise NotImplementedError
