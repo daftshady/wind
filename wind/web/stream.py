@@ -134,7 +134,7 @@ class BaseStream(object):
         """
         if not isinstance(delimiter, basestring):
             raise StreamError('`read_until` can only accept `str` param')
-        self.delimiter = delimiter
+        self._delimiter = delimiter
 
         self._add_callback(callback)
         self._process_read()
@@ -178,12 +178,13 @@ class BaseStream(object):
         
         if self._delimiter is not None:
             while True:
-                pos = self._read_buffer[0].find(self.delimiter)
+                pos = self._read_buffer[0].find(self._delimiter)
                 if pos != -1:
                     # Found delimiter
                     self._run_callback(
                         self._pop_callback(), 
-                        self._pop_chunk(pos + len(self.delimiter)))
+                        self._pop_chunk(pos + len(self._delimiter)))
+                    break
                 
                 if len(self._read_buffer) == 1:
                     # No delimiter found in whole read buffer.
@@ -215,7 +216,8 @@ class BaseStream(object):
 
         if not partial:
             self._to_write_buffer(chunk)
-
+        
+        written = None
         while self._write_buffer:
             try:
                 num_bytes = self._write_to_fd(self._write_buffer[0])
@@ -226,7 +228,7 @@ class BaseStream(object):
 
                 # Partial writing is handled here.
                 self._write_buffer.gather(num_bytes)
-                self._write_buffer.popleft()
+                written = self._write_buffer.popleft()
             except socket.error as e:
                 if e.args[0] in EWOULDBLOCK:
                     # Freeze
@@ -242,7 +244,7 @@ class BaseStream(object):
             # Writing is not completed at one go
             self._attach_stream_handler(PollEvents.WRITE)
         elif not self._write_buffer:
-            self._run_callback(self._pop_callback(read=False))
+            self._run_callback(self._pop_callback(read=False), written)
 
     def _to_write_buffer(self, chunk):
         """Fill `_write_buffer` after dividing `chunk` with 
@@ -368,11 +370,11 @@ class BaseStream(object):
  
 
 class SocketStream(BaseStream):
-    def __init__(self, socket, *args, **kwargs):
-        if not isinstance(socket, socket.socket):
+    def __init__(self, socket_, *args, **kwargs):
+        if not isinstance(socket_, socket.socket):
             raise StreamError(
                 'SocketStream can only be initialized with `socket.socket`')
-        self.socket = socket
+        self.socket = socket_
         super(SocketStream, self).__init__(*args, **kwargs)
     
     def fileno(self):
@@ -392,11 +394,11 @@ class SocketStream(BaseStream):
             return None
 
     def _write_to_fd(self, chunk):
-        self.socket.send(chunk)
+        return self.socket.send(chunk)
 
     def _close_fd(self):
         self.socket.close()
-        slef.socket = None
+        self.socket = None
 
 
 class FileStream(BaseStream):
