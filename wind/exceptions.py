@@ -39,3 +39,6 @@ class StreamError(WindException):
     pass
 
 
+class ApplicationError(WindException):
+    """Application error occured"""
+    pass
