@@ -77,6 +77,7 @@ class BaseStream(object):
         # with last states when read, write was excuted by event handler.
         self._bytes_to_read = None
         self._delimiter = None
+        self._include_delimiter = None
 
         # Saves asynchronous event handled by `looper`. (PollEvents)
         self._handler_event = None
@@ -127,14 +128,17 @@ class BaseStream(object):
         self._add_callback(callback)
         self._process_read()
     
-    def read_until(self, delimiter, callback):
+    def read_until(self, delimiter, callback, include=False):
         """Read until first occurrence of `delimiter`.
         Returned chunk that contains `delimiter`
         
+        @param include(optional): if True, include `delimiter` in chunk.
+
         """
         if not isinstance(delimiter, basestring):
             raise StreamError('`read_until` can only accept `str` param')
         self._delimiter = delimiter
+        self._include_delimiter = include
 
         self._add_callback(callback)
         self._process_read()
@@ -157,6 +161,7 @@ class BaseStream(object):
                 return 0
         except socket.error as e:
             self.close()
+            return
 
         # No buffer size limit yet.
         self._read_buffer.append(chunk)
@@ -181,9 +186,11 @@ class BaseStream(object):
                 pos = self._read_buffer[0].find(self._delimiter)
                 if pos != -1:
                     # Found delimiter
+                    if self._include_delimiter:
+                        pos += len(self._delimiter)
+                    self._delimiter = None
                     self._run_callback(
-                        self._pop_callback(), 
-                        self._pop_chunk(pos + len(self._delimiter)))
+                        self._pop_callback(), self._pop_chunk(pos))
                     break
                 
                 if len(self._read_buffer) == 1:
@@ -303,10 +310,13 @@ class BaseStream(object):
     def _run_callback(self, callback, *args):
         """Immediately run saved callback"""
         try:
-            callback(*args)
+            if callback is not None:
+                callback(*args)
         except Exception as e:
             self.close()
-            raise StreamError(e)
+            # We don't wrap exception here because we don't know
+            # what caused exception at all.
+            raise
     
     def _run_close_callback(self):
         if self.closed:
