@@ -183,6 +183,9 @@ class BaseStream(object):
         
         if self._delimiter is not None:
             while True:
+                if not self._read_buffer:
+                    break
+
                 pos = self._read_buffer[0].find(self._delimiter)
                 if pos != -1:
                     # Found delimiter
