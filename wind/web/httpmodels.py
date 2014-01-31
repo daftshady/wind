@@ -15,17 +15,32 @@ from wind.exceptions import WindException
 from wind.web.datastructures import CaseInsensitiveDict
 
 
+class HTTPStatusCode():
+    """Class for HTTP status code enum"""
+    # Public access fields.
+    SUCCESS = 200
+    BAD_REQUEST = 400
+    FORBIDDEN = 403
+    NOT_FOUND = 404
+    METHOD_NOT_ALLOWED = 405
+    INTERNAL_SERVER_ERROR = 500
+
+
 class HTTPMethod():
     """Class for HTTP methods enum"""
     # Public access fields.
     GET = 'get'
     POST = 'post'
     PUT = 'put'
-    PATCH = 'patch'
     HEAD = 'head'
+    DELETE = 'delete'
     
-    def all(self):
-        return [self.GET, self.POST, self.PUT, self.PATCH, self.HEAD]
+    @staticmethod
+    def all():
+        return [
+            HTTPMethod.GET, HTTPMethod.POST, HTTPMethod.PUT, 
+            HTTPMethod.HEAD, HTTPMethod.DELETE
+            ]
 
 
 class HTTPHeader(object):
@@ -57,6 +72,10 @@ class HTTPRequest(object):
         self.auth = auth
         self.cookies = cookies
     
+    @property
+    def path(self):
+        return urlparse(self.url).path
+
     def __repr__(self):
         return '<HTTPRequest [%s]>' % (self.method)
 
@@ -215,7 +234,7 @@ class HTTPHandler(object):
 
     def _handle_request(self):
          if self._app is not None:
-            self._app.react(self._request)
+            self._app.react(self._conn, self._request)
        
     def __repr__(self):
         return '<HTTPHandler [%s]' % (self._conn.address[0])
