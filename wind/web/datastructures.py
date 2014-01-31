@@ -89,7 +89,11 @@ class FlexibleDict(collections.MutableMapping):
         return key
 
     def __getitem__(self, key):
-        return self._store.get(self._transform(key))[1]
+        key = self._transform(key)
+        if self._store.get(key) is None:
+            return None
+        else:
+            return self._store.get(key)[1]
     
     def __setitem__(self, key, value):
         self._store[self._transform(key)] = (key, value)
@@ -101,7 +105,7 @@ class FlexibleDict(collections.MutableMapping):
         return len(self._store)
 
     def __repr__(self):
-        return '%s(%s)' % (self.__class__.__name__, dict(self.items))
+        return '%s(%s)' % (self.__class__.__name__, dict(self.items()))
 
 
 class CaseInsensitiveDict(FlexibleDict):
@@ -116,6 +120,11 @@ class CaseInsensitiveDict(FlexibleDict):
         True
 
     """
+    def get(self, key, default=None):
+        """Override get here to use default value params"""
+        value = super(CaseInsensitiveDict, self).__getitem__(key)
+        return default if value is None else value
+
     def _transform(self, key):
         return key.lower()
 
