@@ -7,8 +7,34 @@
 
 """
 
+# It doesn't guarantee backward compatibility.
+from urlparse import urlparse, parse_qsl
+
 from wind.web.stream import SocketStream
 from wind.exceptions import WindException
+from wind.web.datastructures import CaseInsensitiveDict
+
+
+class HTTPMethod():
+    """Class for HTTP methods enum"""
+    # Public access fields.
+    GET = 'get'
+    POST = 'post'
+    PUT = 'put'
+    PATCH = 'patch'
+    HEAD = 'head'
+    
+    def all(self):
+        return [self.GET, self.POST, self.PUT, self.PATCH, self.HEAD]
+
+
+class HTTPHeader(object):
+    def __init__(self, dict_={}):
+        self._headers = CaseInsensitiveDict(dict_)
+
+    @property
+    def content_length(self):
+        return int(self._headers.get('content-length', 0))
 
 
 class HTTPRequest(object):
@@ -16,15 +42,18 @@ class HTTPRequest(object):
     def __init__(self, 
         url=None,
         method=None,
-        headers={},
+        headers=None,
         params={},
+        body=None,
         auth=None,
         cookies=None):
         
         self.url = url
-        self.method = method
-        self.headers = headers
+        if isinstance(method, basestring):
+            self.method = method.lower()
+        self.headers = headers 
         self.params = params
+        self.body = body
         self.auth = auth
         self.cookies = cookies
     
@@ -61,6 +90,10 @@ class HTTPConnection(object):
     @property
     def stream(self):
         return self._stream
+    
+    @property
+    def address(self):
+        return self._address
 
     def open(self, close_callback=None):
         self._close_callback = close_callback
@@ -95,23 +128,94 @@ class HTTPHandler(object):
     - __init__(connection)
     - serve_request()
 
+    Inner callbacks:
+
+    - _parse_header(chunk)
+    - _parse_body(chunk)
+    - _parse_params(request)
+
     """
-    def __init__(self, socket_, address):
+    def __init__(self, socket_, address, app=None):
         """Constructor, should not be overriden"""
         self._conn = HTTPConnection(SocketStream(socket_), address)
+        self._app = app
+        self._request = None
 
     def serve_request(self):
         """Serves single http request with initialized connection"""
         self._conn.open(close_callback=self._conn_close_callback)
         # Start handling http request by reading header.
-        self._conn.stream.read_until(b"\r\n\r\n", self._parse_header)
+        self._conn.stream.read_until(
+            b"\r\n\r\n", self._parse_header, include=True)
 
     def _conn_close_callback(self):
         pass
 
     def _parse_header(self, chunk):
-        pass
+        try:
+            if not chunk:
+                # XXX: Grap this exception.
+                return
 
+            # Parse first chunk of request 
+            separator = b'\r\n'
+            meta, raw_headers = chunk.split(separator, 1)
+            method = meta.split()[0]
+            url = meta.split()[1]
+
+            # Generate Headers Dict.
+            raw_headers = raw_headers.split(separator)
+            raw_headers = filter(lambda x:x, raw_headers)
+            headers = HTTPHeader(
+                dict([raw.split(': ', 1) for raw in raw_headers]))
+
+            # Generate `HTTPRequest`
+            self._request = HTTPRequest(
+                url=url, method=method, headers=headers)
+            
+            content_length = self._request.headers.content_length
+            if content_length != 0:
+                self._conn.stream.read_bytes(content_length, self._parse_body)
+            else:
+                if self._request.method == HTTPMethod.GET:
+                    self._request.params = self._parse_params(self._request)
+            
+            self._handle_request()
+
+        except IndexError:
+            raise WindException('Invalid header on incoming HTTP request')
+    
+    def _parse_body(self, chunk):
+        if self._request is None:
+            raise WindException(
+                '_parse_body is not spawned from _parse_header')
+        
+        self._request.body = chunk
+        if self._request.method == HTTPMethod.POST:
+            self._request.params = self._parse_params(self._request)
+        else:
+            raise NotImplementedError
+        
+    def _parse_params(self, request):
+        """Parse params in HTTP Request and return params `Dict` 
+        
+        """
+        try:
+            if request.method == HTTPMethod.GET:
+                return dict(parse_qsl(urlparse(request.url).query))
+            elif request.method == HTTPMethod.POST:
+                return dict(parse_qsl(request.body))
+            else:
+                raise NotImplementedError(
+                    '`_parse_params` for `%s`' % request.method)
+        except ValueError:
+            # XXX: We need to give more details about this error here.
+            raise WindException('Error occured while parsing params')
+            
+
+    def _handle_request(self):
+         if self._app is not None:
+            self._app.react(self._request)
+       
     def __repr__(self):
-        return '<HTTPHandler [%s]' %s (self._conn.address)
-
+        return '<HTTPHandler [%s]' % (self._conn.address[0])
