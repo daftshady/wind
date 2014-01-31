@@ -18,13 +18,13 @@ from wind.web.datastructures import CaseInsensitiveDict
 class HTTPStatusCode():
     """Class for HTTP status code enum"""
     # Public access fields.
-    SUCCESS = 200
-    BAD_REQUEST = 400
-    FORBIDDEN = 403
-    NOT_FOUND = 404
-    METHOD_NOT_ALLOWED = 405
-    INTERNAL_SERVER_ERROR = 500
-
+    OK = '200'
+    BAD_REQUEST = '400'
+    FORBIDDEN = '403'
+    NOT_FOUND = '404'
+    METHOD_NOT_ALLOWED = '405'
+    INTERNAL_SERVER_ERROR = '500'
+    
 
 class HTTPMethod():
     """Class for HTTP methods enum"""
@@ -54,14 +54,8 @@ class HTTPHeader(object):
 
 class HTTPRequest(object):
     """HTTP Request object"""
-    def __init__(self, 
-        url=None,
-        method=None,
-        headers=None,
-        params={},
-        body=None,
-        auth=None,
-        cookies=None):
+    def __init__(self, url=None, method=None, headers={},
+        params={}, body=None, auth=None, cookies=None, version=None):
         
         self.url = url
         if isinstance(method, basestring):
@@ -71,6 +65,7 @@ class HTTPRequest(object):
         self.body = body
         self.auth = auth
         self.cookies = cookies
+        self.version = version
     
     @property
     def path(self):
@@ -82,19 +77,54 @@ class HTTPRequest(object):
 
 class HTTPResponse(object):
     """HTTP Response object"""
-    def __init__(self,
-        request=None,
-        headers={},
-        cookies=None,
-        status_code=None,
-        raw=None
-        ):
+    def __init__(self, request=None, reply=None, headers={},
+        cookies=None, status_code=None):
+
         self.request = request
-        self.headers = headers
+        self.reply = reply
+        self.headers = CaseInsensitiveDict({
+            'Content-Type' : 'text/html; charset=UTF-8',
+            'Server' : 'Wind framework'
+            })
+        self.headers.update(headers)
         self.cookies = cookies
         self.status_code = status_code
-        self.raw = raw
+        if self.status_code is not None:
+            self.reply = self._generate_reply(self.status_code)
     
+    def raw(self):
+        if self.reply is not None:
+            separator = b'\r\n'
+            raw = self.reply + separator
+            for k, v in self.headers.items():
+                # XXX: Is `str` has compatibility?
+                raw += k + ': ' + str(v) + separator
+            raw += separator
+            return raw
+                
+    def _generate_reply(self, status_code):
+        # TODO: Determine HTTP version from request.
+        version = 'HTTP/1.1'
+        def reply(list_):
+            return ' '.join(list_)
+        code = HTTPStatusCode
+        if status_code == code.OK:
+            return reply([version, code.OK, 'OK'])
+        elif status_code == code.BAD_REQUEST:
+            return reply([version, code.BAD_REQUEST, 'Bad Request'])
+        elif status_code == code.FORBIDDEN:
+            return reply([version, code.FORBIDDEN, 'Forbidden'])
+        elif status_code == code.NOT_FOUND:
+            return reply([version, code.NOT_FOUND, 'Not Found'])
+        elif status_code == code.METHOD_NOT_ALLOWED:
+            return reply(
+                [version, code.METHOD_NOT_ALLOWED, 
+                    'Method Not Allowed'])
+        elif status_code == code.INTERNAL_SERVER_ERROR:
+            return reply(
+                [version, code.INTERNAL_SERVER_ERROR, 
+                    'Internal Server Error'])
+
     def __repr__(self):
         return '<HTTPResponse [%s]>' % (self.status_code)
 
@@ -191,7 +221,6 @@ class HTTPHandler(object):
             # Generate `HTTPRequest`
             self._request = HTTPRequest(
                 url=url, method=method, headers=headers)
-            
             content_length = self._request.headers.content_length
             if content_length != 0:
                 self._conn.stream.read_bytes(content_length, self._parse_body)
