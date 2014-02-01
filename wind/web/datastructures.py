@@ -114,7 +114,7 @@ class CaseInsensitiveDict(FlexibleDict):
     
         >>> dict_ = CaseInsensitvieDict()
         >>> dict_['club'] = 'octagon'
-        >>> dict_.get['CLUB']
+        >>> dict_.get('CLUB')
         octagon
         >>> dict_.get('CluB') == dict_.get('ClUb')
         True
