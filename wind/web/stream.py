@@ -101,7 +101,7 @@ class BaseStream(object):
     def _clear(self):
         """Make this stream to initial state after served one request"""
         if self._handler_event is not None:
-            slef._handler_event = None
+            self._handler_event = None
             self._looper.remove_handler(self.fileno())
         self._read_callback = self._write_callback = None
         self._read_buffer_bytes = 0
@@ -157,7 +157,7 @@ class BaseStream(object):
                 # End of read
                 break
         if not self._read_buffer:
-            self.close()
+            self._attach_read_handler()
             return
 
         self._read()
@@ -225,6 +225,15 @@ class BaseStream(object):
     def _read_from_fd(self):
         raise NotImplementedError()
     
+    def _attach_read_handler(self):
+        """Attach read handler to `looper`.
+        If socket throws EWOULDBLOCK with empty `_read_buffer`,
+        `looper` should observe that socket for lazy reading.
+
+        """
+        if self._handler_event is None:
+            self._attach_stream_handler(PollEvents.READ)
+
     def write(self, chunk, callback):
         if not isinstance(chunk, basestring):
             raise StreamError('Can write only chunk of `bytes`')
