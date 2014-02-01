@@ -113,6 +113,7 @@ class TCPServer(BaseServer):
             while True:
                 try:
                     conn, address = socket_.accept()
+                    conn.setblocking(0)
                 except socket.error as e:
                     if e.args[0] in EWOULDBLOCK:
                         return
