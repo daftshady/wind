@@ -14,9 +14,31 @@ from wind.web.httpmodels import (
 from wind.web.datastructures import FlexibleDeque, CaseInsensitiveDict
 
 
+def path(handler, route='', methods=[]):
+    """Api method for providing intuition to url binding."""
+    return Path(handler, route, methods)
+
+
 class WindApp(object):
     """Wind web application
+    We expect that our app usage code will be like this, and it works now.
+    This usage interface is made for the purpose of testing `performance`.
+    Therefore, it may be fully revised.
     
+    `hello wind!` Example::
+
+        from wind.web.app import WindApp, path
+        from wind.web.httpserver import HTTPServer
+
+        def hello_wind(request):
+            return 'hello wind!'
+
+        app = WindApp([
+                path(hello_wind, route='/', methods=['get'])
+                ])
+        server = HTTPServer(app=app)
+        server.run_simple('127.0.0.1', 7000)
+
     """
     def __init__(self, urls):
         self._dispatcher = PathDispatcher(urls)
@@ -37,11 +59,10 @@ class WindApp(object):
  
 
 class PathDispatcher(object):
-    def __init__(self, urls):
+    def __init__(self, urls=[]):
         try:
             self._paths = []
-            for handler, route, methods in urls:
-                self._paths.append(Path(handler, route, methods))
+            self._paths.extend(urls)
         except (ValueError, TypeError) as e:
             raise ApplicationError(
                 'Form should be `List` of `(handler, route, method)` `Tuple`.')
