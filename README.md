@@ -23,7 +23,7 @@ So, it may be fully revised.
 
 Note
 ====
-It's currently under activity development. 
+It's currently under active development. 
 
 Because it's not released yet, using this framework in its current state is at your own risk.
 
