@@ -93,16 +93,23 @@ class BaseStream(object):
 
     def close(self):
         if not self.closed:
-            if self._handler_event is not None:
-                slef._handler_event = None
-                self._looper.remove_handler(self.fileno())
+            self._clear()
             self._is_opened = False
             self._close_fd()
             self._run_close_callback()
     
+    def _clear(self):
+        """Make this stream to initial state after served one request"""
+        if self._handler_event is not None:
+            slef._handler_event = None
+            self._looper.remove_handler(self.fileno())
+        self._read_callback = self._write_callback = None
+        self._read_buffer_bytes = 0
+        self._read_buffer =  self._write_buffer = None
+
     def _close_fd(self):
         raise NotImplementedError
-
+    
     def fileno(self):
         """Returns fd of socket or file"""
         raise NotImplementedError
@@ -149,6 +156,10 @@ class BaseStream(object):
             if self._to_read_buffer() == 0:
                 # End of read
                 break
+        if not self._read_buffer:
+            self.close()
+            return
+
         self._read()
 
     def _to_read_buffer(self):
@@ -327,7 +338,6 @@ class BaseStream(object):
                 callback = self._close_callback
                 self._run_callback(callback)
                 self._close_callback = None
-                self._read_callback = self._write_callback = None
 
     def event_handler(self, fd, events):
         """Handler which will attached to `looper`"""

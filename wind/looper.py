@@ -38,6 +38,7 @@ class PollLooper(object):
         """Event driven io loop using `poll`
 
         :param driver: Actual unix system call implementing io multiplexing
+
         """
         super(PollLooper, self).__init__()
         self._running = False
