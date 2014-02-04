@@ -196,6 +196,10 @@ class Resource(object):
             return
     
     def write(self, chunk, left=False):
+        if isinstance(chunk, dict):
+            chunk = json.dumps(chunk)
+            self._response_header.to_json_content()
+
         if chunk:
             if left:
                 self._write_buffer.appendleft(chunk)

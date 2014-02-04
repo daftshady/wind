@@ -89,6 +89,9 @@ class HTTPResponseHeader(HTTPHeader):
             'Server' : 'Wind framework'
             })
 
+    def to_json_content(self):
+        self._headers['Content-Type'] = 'application/json; charset=UTF-8'
+    
 
 class HTTPRequest(object):
     """HTTP Request object"""
