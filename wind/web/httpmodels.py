@@ -46,10 +46,48 @@ class HTTPMethod():
 class HTTPHeader(object):
     def __init__(self, dict_={}):
         self._headers = CaseInsensitiveDict(dict_)
+    
+    def add_content_length(self, value):
+        self.add('Content-Length', value)
 
     @property
     def content_length(self):
-        return int(self._headers.get('content-length', 0))
+        return int(self._headers.get('Content-Length', 0))
+
+    def add(self, key, value):
+        self._headers[key] = value
+
+    def remove(self, key):
+        self._headers.pop(key, None)
+
+    def update(self, headers):
+        self._headers.update(headers)
+
+    def to_dict(self):
+        """Returns `CaseInsensitiveDict` of headers"""
+        return self._headers
+    
+    def default(self):
+        """Should return `CaseInsensitiveDict`"""
+        return CaseInsensitiveDict()
+    
+    def clear(self):
+        self._headers = self.default()
+
+    def __repr__(self):
+        return '<HTTPHeader [%s]>' % (self._headers)
+
+
+class HTTPResponseHeader(HTTPHeader):
+    def __init__(self, dict_={}):
+        self._headers = self.default()
+        self._headers.update(dict_)
+    
+    def default(self):
+        return CaseInsensitiveDict({
+            'Content-Type' : 'text/html; charset=UTF-8',
+            'Server' : 'Wind framework'
+            })
 
 
 class HTTPRequest(object):
@@ -82,10 +120,7 @@ class HTTPResponse(object):
 
         self.request = request
         self.reply = reply
-        self.headers = CaseInsensitiveDict({
-            'Content-Type' : 'text/html; charset=UTF-8',
-            'Server' : 'Wind framework'
-            })
+        self.headers = HTTPResponseHeader()
         self.headers.update(headers)
         self.cookies = cookies
         self.status_code = status_code
@@ -96,7 +131,7 @@ class HTTPResponse(object):
         if self.reply is not None:
             separator = b'\r\n'
             raw = self.reply + separator
-            for k, v in self.headers.items():
+            for k, v in self.headers.to_dict().items():
                 # XXX: Is `str` has compatibility?
                 raw += k + ': ' + str(v) + separator
             raw += separator

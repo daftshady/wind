@@ -7,10 +7,12 @@
 
 """
 
+import json
 from urlparse import urlparse, parse_qs
-from wind.exceptions import ApplicationError
 from wind.web.httpmodels import (
-    HTTPRequest, HTTPResponse, HTTPMethod, HTTPStatusCode)
+    HTTPRequest, HTTPResponse, HTTPMethod, 
+    HTTPStatusCode, HTTPResponseHeader)
+from wind.exceptions import ApplicationError
 from wind.web.datastructures import FlexibleDeque, CaseInsensitiveDict
 
 
@@ -167,7 +169,7 @@ class Resource(object):
         self._processing = False
         self._write_buffer = FlexibleDeque()
         self._write_buffer_bytes = 0
-        self._response_header = CaseInsensitiveDict()
+        self._response_header = HTTPResponseHeader()
         self.initialize()
 
     def initialize(self):
@@ -194,7 +196,6 @@ class Resource(object):
             return
     
     def write(self, chunk, left=False):
-        # TODO: Consider json write
         if chunk:
             if left:
                 self._write_buffer.appendleft(chunk)
@@ -206,11 +207,12 @@ class Resource(object):
         """Finish this resource connection by sending response"""
         # Generate response headers
         if self._write_buffer:
-            self._append_response_header(
-                'Content-Length', self._write_buffer_bytes)
+            self._response_header. \
+                add_content_length(self._write_buffer_bytes)
 
         response = HTTPResponse(
-            headers=self._response_header,status_code=HTTPStatusCode.OK)
+            headers=self._response_header.to_dict(),
+            status_code=HTTPStatusCode.OK)
         self.write(response.raw(), left=True)
         self._write_buffer.gather(self._write_buffer_bytes)
         self._conn.stream.write(self._write_buffer.popleft(), None)
@@ -219,15 +221,11 @@ class Resource(object):
         self._processing = False
         self._clear()
     
-    # HTTP response header related methods
-    def _append_response_header(self, key, value):
-        self._response_header[key] = value
-    
     def _clear(self):
         self._conn = self._request = None
         self._write_buffer = FlexibleDeque()
         self._write_buffer_bytes = 0
-        self._response_header = CaseInsensitiveDict()
+        self._response_header.clear()
 
     def handle_get(self, request):
         pass
