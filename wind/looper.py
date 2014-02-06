@@ -15,7 +15,6 @@ import threading
 from wind.exceptions import LooperError
 from wind.poll import PollEvents, Select
 
-# XXX : Remove deep interaction of `looper` with `server`
 
 # Taken from `SocketServer.py` temporarily
 def _eintr_retry(func, *args):

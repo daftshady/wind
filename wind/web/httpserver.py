@@ -17,6 +17,6 @@ class HTTPServer(TCPServer):
         self._app = app
         super(HTTPServer, self).__init__(*args, **kwargs)
 
-    def _connection_handler(self, socket_, address):
+    def _event_handler(self, socket_, address):
         handler = HTTPHandler(socket_, address, app=self._app)
         handler.serve_request()
