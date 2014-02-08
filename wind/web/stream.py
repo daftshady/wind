@@ -10,7 +10,7 @@
 import errno
 import socket
 from wind.looper import Looper
-from wind.poll import PollEvents
+from wind.driver import PollEvents
 from wind.exceptions import StreamError
 from wind.web.datastructures import FlexibleDeque
 from wind.socketserver import EWOULDBLOCK, ECONNRESET

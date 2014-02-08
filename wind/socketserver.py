@@ -11,7 +11,7 @@
 import socket
 import errno
 from wind.looper import Looper
-from wind.poll import PollEvents
+from wind.driver import PollEvents
 from wind.exceptions import SocketError, ServerError
 
 

@@ -1,15 +1,30 @@
 """
 
-    wind.poll
-    ~~~~~~~~~
+    wind.driver
+    ~~~~~~~~~~~
     
-    Event-driven io implementations.
+    Drivers for io multiplexing. 
 
 """
 
 import select
 from itertools import chain
-from wind.exceptions import PollError
+from wind.exceptions import PollError, WindException
+
+
+def pick():
+    """Pick best event driver depending on OS.
+    `Select`, `Poll` are available in most OS.
+    `Epoll` is available on Linux 2.5.44 and newer.
+    `KQueue` is available on most BSD.
+    
+    """
+    try:
+        candidates = ['select', 'poll', 'epoll']
+        driver = filter(lambda x : hasattr(select, x), candidates)[-1]
+        return eval(driver.title())().instance
+    except (IndexError, NameError) as e:
+        raise WindException('No available event driver')
 
 
 class PollEvents:
@@ -18,8 +33,11 @@ class PollEvents:
     ERROR = 0x008
 
 
-class BasePoll(object):
-    """Forces implementation of select.poll interface"""
+class BaseDriver(object):
+    """Forces implementation of select.epoll interface"""
+    def __init__(self):
+        self._driver = None
+
     def close(self):
         pass
 
@@ -40,9 +58,13 @@ class BasePoll(object):
 
     def poll(self, poll_timeout):
         raise NotImplemented("Should implement `poll` method")
+    
+    @property
+    def instance(self):
+        return self._driver
 
 
-class Select(BasePoll):
+class Select(BaseDriver):
     """Wraps unix system call `select`.
 
     Used when there is no support for `epoll` or `kqueue` in kernel.
@@ -52,6 +74,7 @@ class Select(BasePoll):
         self.read_fds = set()
         self.write_fds = set()
         self.error_fds = set()
+        self._driver = self
 
     def register(self, fd, event_mask):
         if fd in self.fds():
@@ -100,14 +123,14 @@ class Select(BasePoll):
         return set(chain(self.read_fds, self.write_fds, self.error_fds))
 
 
-# TODO : implement poll!
-class Poll(BasePoll):
-    pass
+class Poll(BaseDriver):
+    def __init__(self):
+        self._driver = select.poll()
 
 
-class KQueue(BasePoll):
-    pass
+class Epoll(BaseDriver):
+    def __init__(self):
+        self._driver = select.epoll()
 
 
-class Epoll(BasePoll):
-    pass
+# TODO: implement Kqueue!

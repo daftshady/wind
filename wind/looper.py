@@ -13,7 +13,7 @@ import select
 import threading
 
 from wind.exceptions import LooperError
-from wind.poll import PollEvents, Select
+from wind.driver import PollEvents, Select
 
 
 # Taken from `SocketServer.py` temporarily
