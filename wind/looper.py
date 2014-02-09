@@ -12,8 +12,8 @@ import errno
 import select
 import threading
 
+from wind.driver import pick
 from wind.exceptions import LooperError
-from wind.driver import PollEvents, Select
 
 
 # Taken from `SocketServer.py` temporarily
@@ -33,7 +33,7 @@ class PollLooper(object):
 
     _singleton_lock = threading.Lock()
 
-    def __init__(self, driver):
+    def __init__(self, driver=None):
         """Event driven io loop using `poll`
 
         :param driver: Actual unix system call implementing io multiplexing
@@ -56,8 +56,7 @@ class PollLooper(object):
             with PollLooper._singleton_lock:
                 if not hasattr(PollLooper, '_instance'):
                     # Choose suitable driver here.
-                    # Temporarily, we will use `select` for test.
-                    PollLooper._instance = PollLooper(Select())
+                    PollLooper._instance = PollLooper(driver=pick())
         return PollLooper._instance
 
     def attach_handler(self, fd, event_mask, handler):

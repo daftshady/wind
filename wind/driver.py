@@ -178,8 +178,8 @@ class Kqueue(BaseDriver):
         self.control(fd, event_mask, select.KQ_EV_ADD)
         self._events[fd] = event_mask
 
-    def unregister(self, fd, event_mask):
-        self.control(fd, event_mask, select.KQ_EV_DELETE)
+    def unregister(self, fd):
+        self.control(fd, self._events[fd], select.KQ_EV_DELETE)
         self._events.pop(fd, None)
     
     def modify(self, fd, event_mask):
@@ -197,7 +197,7 @@ class Kqueue(BaseDriver):
             kevent = self._kevent.write_events(fd, flag)
         
         # Calls low level interface to kevent.
-        self._kq.control([kevent], 0, timeout=None)
+        self._kq.control([kevent], 0, None)
     
     def poll(self, poll_timeout):
         """Returns `List` of (fd, event) pair
@@ -207,7 +207,7 @@ class Kqueue(BaseDriver):
         """
         events = Events()
         event_list = self._kq.control(
-            None, self._max_events, timeout=poll_timeout)
+            None, self._max_events, poll_timeout)
         for event in event_list:
             fd = event.ident
             if event.filter == select.KQ_FILTER_READ:
