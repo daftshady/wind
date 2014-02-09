@@ -119,7 +119,7 @@ class Select(BaseDriver):
         return events.items()
 
     def fds(self):
-        """Returns all fds saved in this object"""
+        """Returns all fds observed in this event looper"""
         return set(chain(self.read_fds, self.write_fds, self.error_fds))
 
 
@@ -134,3 +134,61 @@ class Epoll(BaseDriver):
 
 
 # TODO: implement Kqueue!
+class Kqueue(BaseDriver):
+    def __init__(self):
+        self._driver = self
+        # Saves observed fd, event_mask in `Dict`.
+        self._events = {}
+        # OS dependent `kqueue` implementation.
+        self._kq = select.kqueue()
+        self._kevent = Kevent()
+
+    def close(self):
+        self._events = {}
+        self._kq.close()
+
+    def fromfd(self, fd):
+        return self._kq.fromfd(fd)
+
+    def register(self, fd, event_mask):
+        if fd in self.fds():
+            raise PollError('Fd %d already registered' % fd)
+
+        self.control(fd, event_mask, select.KQ_EV_ADD)
+        self._events[fd] = event_mask
+
+    def unregister(self, fd, event_mask):
+        self.control(fd, event_mask, select.KQ_EV_DELETE)
+        self._events.pop(fd, None)
+    
+    def control(self, fd, event_mask, flag):
+        if event_mask & PollEvents.READ or event_mask & PollEvents.ERROR:
+            kevent = self._kevent.read_events(fd, flag)
+        elif event_mask & PollEvents.WRITE:
+            kevent = self._kevent.write_events(fd, flag)
+        
+        # Calls low level interface to kevent.
+        self._kq.control([kevent], 0, timeout=None)
+
+    def fds(self):
+        return self._events.keys()
+
+
+class Kevent(object):
+    """Wraps `select.kevent` system call.
+    This class is used to register events with the queue, and
+    return any pending events to user.
+
+    """
+    def __init__(self):
+        pass
+
+    def read_events(self, fd, flags):
+        return select.kevent(
+            fd, filter=select.KQ_FILTER_READ, flags=flags)
+
+    def write_events(self, fd, flags):
+        return select.kevent(
+            fd, filter=select.KQ_FILTER_WRITE, flags=flags)
+
+
