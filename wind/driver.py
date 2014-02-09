@@ -8,6 +8,7 @@
 """
 
 import select
+import collections
 from itertools import chain
 from wind.exceptions import PollError, WindException
 
@@ -20,7 +21,7 @@ def pick():
     
     """
     try:
-        candidates = ['select', 'poll', 'epoll']
+        candidates = ['select', 'poll', 'epoll', 'kqueue']
         driver = filter(lambda x : hasattr(select, x), candidates)[-1]
         return eval(driver.title())().instance
     except (IndexError, NameError) as e:
@@ -31,6 +32,25 @@ class PollEvents:
     READ = 0x001
     WRITE = 0x004
     ERROR = 0x008
+
+
+class Events(object):
+    """`Events` class having `Dict` containing only event_mask.
+    This class is needed to reduce code duplication when
+    setting event_mask to `Dict` in many drivers.
+
+    """
+    def __init__(self):
+        self._events = {}
+
+    def add(self, fd, event_mask):
+        self._events[fd] = self._events.get(fd, 0) | event_mask
+
+    def pop(self, fd):
+        self._events.pop(fd)
+
+    def items(self):
+        return self._events.items()
 
 
 class BaseDriver(object):
@@ -109,13 +129,13 @@ class Select(BaseDriver):
         read, write, error = select.select(
             self.read_fds, self.write_fds, self.error_fds, poll_timeout)
         
-        events = {}
+        events = Events()
         for fd in read:
-            events[fd] = events.get(fd, 0) | PollEvents.READ
+            events.add(fd, PollEvents.READ)
         for fd in write:
-            events[fd] = events.get(fd, 0) | PollEvents.WRITE
+            events.add(fd, PollEvents.WRITE)
         for fd in error:
-            events[fd] = events.get(fd, 0) | PollEvents.ERROR
+            events.add(fd, PollEvents.ERROR)
         return events.items()
 
     def fds(self):
@@ -133,7 +153,6 @@ class Epoll(BaseDriver):
         self._driver = select.epoll()
 
 
-# TODO: implement Kqueue!
 class Kqueue(BaseDriver):
     def __init__(self):
         self._driver = self
@@ -142,6 +161,8 @@ class Kqueue(BaseDriver):
         # OS dependent `kqueue` implementation.
         self._kq = select.kqueue()
         self._kevent = Kevent()
+        # Max number of events that will be returned from `kqueue.control`
+        self._max_events = 200
 
     def close(self):
         self._events = {}
@@ -184,17 +205,18 @@ class Kqueue(BaseDriver):
         :param poll_timeout: Value for select timeout.(sec)
         If timeout is `0`, it specifies a poll and never blocks.
         """
-        events = {}
-        event_list = self._kq.control(None, 200, timeout=poll_timeout)
+        events = Events()
+        event_list = self._kq.control(
+            None, self._max_events, timeout=poll_timeout)
         for event in event_list:
             fd = event.ident
             if event.filter == select.KQ_FILTER_READ:
-                events[fd] = events.get(fd, 0) | PollEvents.READ
+                events.add(fd, PollEvents.READ)
             elif event.filter == select.KQ_FILTER_WRITE:
                 if event.flags == select.KQ_EV_EOF:
-                    events[fd] = events.get(fd, 0) | PollEvents.ERROR
+                    events.add(fd, PollEvents.ERROR)
                 else:
-                    events[fd] = events.get(fd, 0) | PollEvents.WRITE
+                    events.add(fd, PollEvents.WRITE)
             
             if event.flags == select.KQ_EV_ERROR:
                 events[fd] = evetns.get(fd, 0) | PollEvents.ERROR
