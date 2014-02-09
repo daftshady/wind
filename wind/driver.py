@@ -161,6 +161,14 @@ class Kqueue(BaseDriver):
         self.control(fd, event_mask, select.KQ_EV_DELETE)
         self._events.pop(fd, None)
     
+    def modify(self, fd, event_mask):
+        self.unregister(fd)
+        try:
+            self.register(fd, event_mask)
+        except PollError as e:
+            e.args[0] = 'Cannot modify undefined event'
+            raise
+
     def control(self, fd, event_mask, flag):
         if event_mask & PollEvents.READ or event_mask & PollEvents.ERROR:
             kevent = self._kevent.read_events(fd, flag)
@@ -169,6 +177,29 @@ class Kqueue(BaseDriver):
         
         # Calls low level interface to kevent.
         self._kq.control([kevent], 0, timeout=None)
+    
+    def poll(self, poll_timeout):
+        """Returns `List` of (fd, event) pair
+
+        :param poll_timeout: Value for select timeout.(sec)
+        If timeout is `0`, it specifies a poll and never blocks.
+        """
+        events = {}
+        event_list = self._kq.control(None, 200, timeout=poll_timeout)
+        for event in event_list:
+            fd = event.ident
+            if event.filter == select.KQ_FILTER_READ:
+                events[fd] = events.get(fd, 0) | PollEvents.READ
+            elif event.filter == select.KQ_FILTER_WRITE:
+                if event.flags == select.KQ_EV_EOF:
+                    events[fd] = events.get(fd, 0) | PollEvents.ERROR
+                else:
+                    events[fd] = events.get(fd, 0) | PollEvents.WRITE
+            
+            if event.flags == select.KQ_EV_ERROR:
+                events[fd] = evetns.get(fd, 0) | PollEvents.ERROR
+
+        return events.items()
 
     def fds(self):
         return self._events.keys()
@@ -190,5 +221,4 @@ class Kevent(object):
     def write_events(self, fd, flags):
         return select.kevent(
             fd, filter=select.KQ_FILTER_WRITE, flags=flags)
-
 
