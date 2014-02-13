@@ -3,7 +3,7 @@
 """Tests for wind"""
 
 import unittest
-from wind.web.datastructures import FlexibleDeque
+from wind.web.datastructures import FlexibleDeque, CaseInsensitiveDict
 
 
 class StreamTestCase(unittest.TestCase):
@@ -47,6 +47,18 @@ class DatastructuresTestCase(unittest.TestCase):
         q.gather(30, left=False)
         assert q == FlexibleDeque(['Park ilsu...'])
 
+    def test_caseinsensitive_dict(self):
+        # Test case-insensitive comparison.
+        dict_ = CaseInsensitiveDict()
+        dict_['club'] = 'octagon'
+        assert dict_.get('CLUB') == dict_.get('ClUb')
+        
+        # Test `get` method works.
+        v = dict_.get('daft', 'punk')
+        assert v == 'punk'
+        
+        v = dict_.get('CLub')
+        assert v == 'octagon'
 
 
 if __name__ == '__main__':
