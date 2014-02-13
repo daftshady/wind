@@ -12,7 +12,7 @@ import errno
 import select
 import threading
 
-from wind.driver import pick
+from wind.driver import pick, Select
 from wind.exceptions import LooperError
 
 
@@ -43,7 +43,7 @@ class PollLooper(object):
         self._running = False
         self._handlers = {}
         self._events = {}
-        self._driver = driver
+        self._driver = driver or pick()
 
     @staticmethod
     def instance():
