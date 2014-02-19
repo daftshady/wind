@@ -156,6 +156,9 @@ class BaseStream(object):
             if self._to_read_buffer() == 0:
                 # End of read
                 break
+        if self.closed:
+            return
+
         if not self._read_buffer:
             self._attach_read_handler()
             return
