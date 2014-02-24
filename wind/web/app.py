@@ -71,7 +71,7 @@ class PathDispatcher(object):
     
     def lookup(self, url):
         for path in self._paths:
-            if url in path.route:
+            if url == path.route:
                 return path
 
 
