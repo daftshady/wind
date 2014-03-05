@@ -378,6 +378,8 @@ class BaseStream(object):
         try:
             self._process_write()
         except Exception:
+            # TODO: Should log stack trace here 
+            # instead of silently eatting exception.
             self.close()
 
     def _handle_read(self):
@@ -388,6 +390,8 @@ class BaseStream(object):
         try:
             self._process_read()
         except Exception:
+            # TODO: Should log stack trace here 
+            # instead of silently eatting exception.
             self.close()
     
     def _attach_stream_handler(self, event_mask):
