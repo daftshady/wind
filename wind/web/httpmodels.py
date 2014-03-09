@@ -43,6 +43,12 @@ class HTTPMethod():
             ]
 
 
+class HTTPRequestContentType():
+    """Only supports form content types"""
+    DEFAULT = 'application/x-www-form-urlencoded'
+    MULTIPART = 'multipart/form-data'
+
+
 class HTTPHeader(object):
     def __init__(self, dict_={}):
         self._headers = CaseInsensitiveDict(dict_)
@@ -51,8 +57,15 @@ class HTTPHeader(object):
         self.add('Content-Length', value)
 
     @property
+    def content_type(self):
+        return self._headers.get('Content-Type', '')
+
+    @property
     def content_length(self):
         return int(self._headers.get('Content-Length', 0))
+
+    def get(self, key):
+        return self._headers.get(key)
 
     def add(self, key, value):
         self._headers[key] = value
@@ -278,7 +291,8 @@ class HTTPHandler(object):
         
         self._request.body = chunk
         if self._request.method == HTTPMethod.POST:
-            self._request.params = self._parse_params(self._request)
+            self._request.params = \
+                self._parse_params(self._request)
         else:
             raise NotImplementedError
         
@@ -286,18 +300,90 @@ class HTTPHandler(object):
         """Parse params in HTTP Request and return params `Dict` 
         
         """
+        # XXX: Why params pasing methods are in `HTTPHandler`?
         try:
             if request.method == HTTPMethod.GET:
-                return dict(parse_qsl(urlparse(request.url).query))
+                return self._parse_get_params(request) 
             elif request.method == HTTPMethod.POST:
-                return dict(parse_qsl(request.body))
+                return self._parse_post_params(request)
             else:
                 raise NotImplementedError(
                     '`_parse_params` for `%s`' % request.method)
         except ValueError:
             # XXX: We need to give more details about this error here.
             raise WindException('Error occured while parsing params')
+    
+    def _parse_get_params(self, request):
+        return dict(parse_qsl(urlparse(request.url).query))
+
+    def _parse_post_params(self, request):
+        if request.headers. \
+            content_type.startswith(HTTPRequestContentType.DEFAULT):
+            return dict(parse_qsl(request.body))
+        elif request.headers. \
+            content_type.startswith(HTTPRequestContentType.MULTIPART):
+            params = {}
+            self._parse_multipart(
+                request.headers.content_type, request.body, params=params)
+            return params
+
+    def _parse_multipart(self, content_type, chunk, params=None):
+        try:
+            boundary = ''
+            # Find boundary
+            for type_ in content_type.split(';'):
+                pairs = type_.strip().partition('=')
+                if pairs[0] == 'boundary':
+                    boundary = pairs[2]
+            if not boundary:
+                raise WindException('Multipart header has no boundary')
             
+            separator = b'--'
+            end = chunk.find(separator + boundary + separator)
+            contents = [
+                x for x in chunk[:end].split(separator + boundary) if x]
+            
+            # Iterate each content to parse data.
+            for content in contents:
+                content_end_idx = content.find(b'\r\n\r\n')
+                value = content[content_end_idx+4:-2]
+                elements = content[:content_end_idx].split(';')
+                elements = [x.strip() for x in elements]
+                
+                # Separate contents sticked each other.
+                for elem in elements:
+                    if b'\r\n' in elem:
+                        elements.remove(elem)
+                        elements.extend(elem.split(b'\r\n'))
+                
+                content_params = CaseInsensitiveDict()
+                def inject_param(raw, separator):
+                    pairs = raw.split(separator)
+                    # Remove unnecessary quote in param string.
+                    k, v = pairs
+                    if v.startswith('"') and v.endswith('"'):
+                        v = v[1:-1]
+                    content_params[k] = v
+
+                for elem in elements:
+                    if elem.find(': ') != -1:
+                        inject_param(elem, ': ')
+                        continue
+                    if elem.find('=') != -1:
+                        inject_param(elem, '=')
+                        continue
+
+                name = content_params.get('name')
+                if content_params.get('filename'):
+                    # TODO: Implement it
+                    pass
+
+                if params is not None:
+                    params[name] = value
+
+        except Exception as e:  
+            # TODO: Warn for invalid post body
+            raise e
 
     def _handle_request(self):
          if self._app is not None:
@@ -305,3 +391,5 @@ class HTTPHandler(object):
        
     def __repr__(self):
         return '<HTTPHandler [%s]' % (self._conn.address[0])
+
+
