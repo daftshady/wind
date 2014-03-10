@@ -275,6 +275,7 @@ class HTTPHandler(object):
             content_length = self._request.headers.content_length
             if content_length != 0:
                 self._conn.stream.read_bytes(content_length, self._parse_body)
+                return
             else:
                 if self._request.method == HTTPMethod.GET:
                     self._request.params = self._parse_params(self._request)
@@ -295,6 +296,8 @@ class HTTPHandler(object):
                 self._parse_params(self._request)
         else:
             raise NotImplementedError
+
+        self._handle_request()
         
     def _parse_params(self, request):
         """Parse params in HTTP Request and return params `Dict` 
