@@ -163,7 +163,9 @@ class BaseStream(object):
             self._attach_read_handler()
             return
 
-        self._read()
+        if not self._read():
+            self._attach_read_handler()
+            return
 
     def _to_read_buffer(self):
         """Read chunk from socket or file and returns number of bytes read.
@@ -184,6 +186,8 @@ class BaseStream(object):
 
     def _read(self):
         """Read chunk from `_read_buffer` and run callback with that chunk.
+        Returns `False` if read params are invalid, or read is not completed.
+        (if there is more data to be read)
 
         """
         self._raise_if_closed()
@@ -191,11 +195,13 @@ class BaseStream(object):
         # XXX: handle all expectable cases
         read_bytes = 0
         if self._bytes_to_read is not None:
+            if self._read_buffer_bytes < self._bytes_to_read:
+                return False
+
             read_bytes = min(self._bytes_to_read, self._read_buffer_bytes)
             self._run_callback(
                 self._pop_callback(), self._pop_chunk(read_bytes))
-        
-        if self._delimiter is not None:
+        elif self._delimiter is not None:
             while True:
                 if not self._read_buffer:
                     break
@@ -217,6 +223,8 @@ class BaseStream(object):
                 # No delimiter found in first chunk.
                 self._read_buffer.gather(
                     len(self._read_buffer[0] + self._read_buffer[1]))
+        else:
+            return False
             
     
     def _pop_chunk(self, read_bytes):
@@ -396,7 +404,12 @@ class BaseStream(object):
     
     def _attach_stream_handler(self, event_mask):
         """Attach handler to `looper` for the purpose of handling
-        asynchronous reading and writing"""
+        asynchronous reading and writing
+        
+        """
+        if self.closed:
+            return
+
         if self._handler_event is None:
             # Attach new handler
             self._handler_event = event_mask | PollEvents.ERROR
