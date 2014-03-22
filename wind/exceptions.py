@@ -41,3 +41,8 @@ class StreamError(WindException):
 class ApplicationError(WindException):
     """Application error occured"""
     pass
+
+
+class LoggerError(WindException):
+    """Logger error occured"""
+    pass
