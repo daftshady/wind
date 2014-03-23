@@ -99,13 +99,16 @@ class BaseLogger(object):
         This should be `LogLevel` object.(We are wrapping log level of
         python default logging library for the consistency of usage)
         """
-        handler = logging.StreamHandler()
-        handler.setLevel(log_level.code)
-        formatter = logging.Formatter(format_) \
-            if format_ is not None else self.formatter
-        handler.setFormatter(formatter)
-        logger = self._logger(log_type)
-        logger.addHandler(handler)
+        try:
+            handler = logging.StreamHandler()
+            handler.setLevel(log_level.code)
+            formatter = logging.Formatter(format_) \
+                if format_ is not None else self.formatter
+            handler.setFormatter(formatter)
+            logger = self._logger(log_type)
+            logger.addHandler(handler)
+        except (AttributeError, TypeError) as e:
+            raise LoggerError(e)
 
     def attach_file(self, filename, format_=None, log_type=LogType.BASE):
         """Start file logging of specific logger.
