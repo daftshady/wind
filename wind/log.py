@@ -62,7 +62,8 @@ class BaseLogger(object):
         Should override this when you want to make custom logger
 
         """
-        self._format = '%(asctime)s - %(levelname)s : %(message)s'
+        self._format = '[%(asctime)s]: %(message)s'
+        self._date_format = '%Y-%m-%d %H:%M:%S'
         self._access_logger.setLevel(LogLevel.INFO.code)
         self.attach_stream(LogType.BASE, LogLevel.ERROR)
         self.attach_stream(LogType.ACCESS, LogLevel.INFO)
@@ -78,7 +79,7 @@ class BaseLogger(object):
     
     @property
     def formatter(self):
-        return logging.Formatter(self._format)
+        return logging.Formatter(self._format, self._date_format)
 
     def set_format(self, format_, log_type):
         """Change log format of specific logger
