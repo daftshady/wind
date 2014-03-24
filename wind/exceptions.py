@@ -43,6 +43,11 @@ class ApplicationError(WindException):
     pass
 
 
+class HTTPError(WindException):
+    """Error for HTTP abnormal status handling"""
+    pass
+
+
 class LoggerError(WindException):
     """Logger error occured"""
     pass
