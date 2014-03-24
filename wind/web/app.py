@@ -9,16 +9,17 @@
 
 import json
 from urlparse import urlparse, parse_qs
+from wind.log import wind_logger, LogType
 from wind.web.httpmodels import (
     HTTPRequest, HTTPResponse, HTTPMethod, 
     HTTPStatusCode, HTTPResponseHeader)
-from wind.exceptions import ApplicationError
+from wind.exceptions import ApplicationError, HTTPError
 from wind.web.datastructures import FlexibleDeque, CaseInsensitiveDict
 
 
 def path(handler, route='', methods=[]):
     """Api method for providing intuition to url binding."""
-    return Path(handler, route, methods)
+    return Path(handler, route=route, methods=methods)
 
 
 class WindApp(object):
@@ -54,11 +55,16 @@ class WindApp(object):
             # No registered path. We don't need to handle this request.
             # XXX: Should expose various error states in `react`.
             # (Not only returning False stupidly)
-            return False
+
+            # Let's make a path to error.
+            path = Path(self._error_handler, error_path=True)
         
         # Synchronously run handling method. (Temporarily)
         path.follow(conn, request)
  
+    def _error_handler(self, request):
+        raise HTTPError(HTTPStatusCode.NOT_FOUND)
+
 
 class PathDispatcher(object):
     def __init__(self, urls=[]):
@@ -78,7 +84,9 @@ class PathDispatcher(object):
 class Path(object):
     """Contains information needed for handling HTTP request."""
 
-    def __init__(self, handler, route, methods, **kwargs):
+    def __init__(
+        self, handler, route=None, methods=[], 
+        error_path=False, **kwargs):
         """Initialize path.
         @param handler: 
             Method or Class inherits from `Resource`.
@@ -89,9 +97,10 @@ class Path(object):
         """
         # self._handler is `Resource` object.
         self._handler = self._wrap_handler(handler)
-        self._route = self._process_route(route)
-        self._methods = \
-            [self._validate_method(method.lower()) for method in methods]
+        if not error_path:
+            self._route = self._process_route(route)
+            self._methods = \
+                [self._validate_method(method.lower()) for method in methods]
     
     @property
     def route(self):
@@ -123,15 +132,13 @@ class Path(object):
         Return newly created `Resource` object.
         
         """
-        from types import FunctionType
         if not hasattr(handler, '__call__'):
             raise ApplicationError(
                 'Request handler registered to app should be callable')
 
-        if isinstance(handler, FunctionType):
-            resource = Resource(path=self)
-            resource.inject(handler)
-            return resource
+        resource = Resource(path=self)
+        resource.inject(handler)
+        return resource
     
     def _process_route(self, route):
         """Process with regex in route"""
@@ -166,6 +173,7 @@ class Resource(object):
         self._synchronous_handler = None
         self._conn = None
         self._request = None
+        self._response = None
         self._processing = False
         self._write_buffer = FlexibleDeque()
         self._write_buffer_bytes = 0
@@ -179,7 +187,7 @@ class Resource(object):
     def inject(self, method):
         if hasattr(method, '__call__') and self._synchronous:
             self._synchronous_handler = method
-
+    
     def react(self, conn, request):
         self._processing = True
         self._conn = conn
@@ -191,8 +199,11 @@ class Resource(object):
                 self.write(chunk)
                 self.finish()
             except TypeError as e:
-                #raise ApplicationError(e)
-                raise
+                raise ApplicationError(e)
+            except HTTPError as e:
+                if e.args[0] == HTTPStatusCode.NOT_FOUND:
+                    self._generate_response(status_code=e.args[0])
+                    self.finish()
             return
     
     def write(self, chunk, left=False):
@@ -209,22 +220,27 @@ class Resource(object):
 
     def finish(self):
         """Finish this resource connection by sending response"""
+        if self._response is None:
+            self._generate_response()
+        self.write(self._response.raw(), left=True)
+        self._write_buffer.gather(self._write_buffer_bytes)
+        self._conn.stream.write(self._write_buffer.popleft(), None)
+        self._conn.close()
+        
+        self._log_access()
+        self._processing = False
+        self._clear()
+    
+    def _generate_response(self, status_code=HTTPStatusCode.OK):
         # Generate response headers
         if self._write_buffer:
             self._response_header. \
                 add_content_length(self._write_buffer_bytes)
 
-        response = HTTPResponse(
+        self._response = HTTPResponse(
             headers=self._response_header.to_dict(),
-            status_code=HTTPStatusCode.OK)
-        self.write(response.raw(), left=True)
-        self._write_buffer.gather(self._write_buffer_bytes)
-        self._conn.stream.write(self._write_buffer.popleft(), None)
-        self._conn.close()
+            status_code=status_code)
 
-        self._processing = False
-        self._clear()
-    
     def _clear(self):
         self._conn = self._request = None
         self._write_buffer = FlexibleDeque()
@@ -245,4 +261,11 @@ class Resource(object):
 
     def handle_head(self, request):
         pass
+    
+    def _log_access(self):
+        if self._request is not None and self._response is not None:
+            msg = '%s %s %s' % \
+                (self._request.method.upper(), self._request.url, 
+                    self._response.status_code)
+            wind_logger.log(msg, LogType.ACCESS)
 
