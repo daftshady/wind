@@ -198,12 +198,14 @@ class Resource(object):
                 chunk = self._synchronous_handler(request)
                 self.write(chunk)
                 self.finish()
-            except TypeError as e:
-                raise ApplicationError(e)
             except HTTPError as e:
                 if e.args[0] == HTTPStatusCode.NOT_FOUND:
                     self._generate_response(status_code=e.args[0])
                     self.finish()
+            except Exception as e:
+                self._generate_response(
+                    status_code=HTTPStatusCode.INTERNAL_SERVER_ERROR)
+                self.finish()
             return
     
     def write(self, chunk, left=False):
