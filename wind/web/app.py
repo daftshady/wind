@@ -175,7 +175,6 @@ class Resource(object):
     """
     def __init__(self, path=None):
         self._path = path
-        self._synchronous = path is not None
         self._synchronous_handler = None
         self._conn = None
         self._request = None
@@ -184,6 +183,7 @@ class Resource(object):
         self._write_buffer = FlexibleDeque()
         self._write_buffer_bytes = 0
         self._response_header = HTTPResponseHeader()
+        self._asynchronous = True
         self.initialize()
 
     def initialize(self):
@@ -191,7 +191,7 @@ class Resource(object):
         pass
 
     def inject(self, method=None):
-        if hasattr(method, '__call__') and self._synchronous:
+        if hasattr(method, '__call__') and path is not None:
             self._synchronous_handler = method
 
     def react(self, conn, request):
@@ -203,12 +203,13 @@ class Resource(object):
             if self._synchronous_handler is not None:
                 # Simply run synchronous handler for test!
                 chunk = self._synchronous_handler(request)
+                self.write(chunk)
+                self.finish()
             else:
-                handler = getattr(self, 'handle_' + request.method)
-                chunk = handler()
-
-            self.write(chunk)
-            self.finish()
+                # Execute request handler
+                getattr(self, 'handle_' + request.method)()
+                if not self._asynchronous:
+                    self.finish()
         except HTTPError as e:
             http_errors = \
                 [HTTPStatusCode.NOT_FOUND, HTTPStatusCode.METHOD_NOT_ALLOWED]
