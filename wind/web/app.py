@@ -203,6 +203,7 @@ class Resource(object):
                     self._generate_response(status_code=e.args[0])
                     self.finish()
             except Exception as e:
+                # TODO: Log for warning
                 self._generate_response(
                     status_code=HTTPStatusCode.INTERNAL_SERVER_ERROR)
                 self.finish()
