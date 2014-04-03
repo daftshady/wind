@@ -95,8 +95,14 @@ class Path(object):
             Allowed HTTP methods. `List` of string indicating method.
 
         """
-        # self._handler is `Resource` object.
-        self._handler = self._wrap_handler(handler)
+        # self._handler should be `Resource` object.
+        try:
+            if issubclass(handler, Resource):
+                handler = handler(path=self)
+        except TypeError as e:
+            handler = self._wrap_handler(handler)
+
+        self._handler = handler
         if not error_path:
             self._route = self._process_route(route)
             self._methods = \
@@ -128,16 +134,16 @@ class Path(object):
     
     def _wrap_handler(self, handler):
         """
-        If handler is method, wraps handler with `Resource`
-        Return newly created `Resource` object.
-        
+        If handler is method, wraps handler with `Resource` initialized with
+        this path. Return newly created `Resource` object.
+
         """
         if not hasattr(handler, '__call__'):
             raise ApplicationError(
                 'Request handler registered to app should be callable')
 
         resource = Resource(path=self)
-        resource.inject(handler)
+        resource.inject(method=handler)
         return resource
     
     def _process_route(self, route):
@@ -184,30 +190,38 @@ class Resource(object):
         """Constructor hook"""
         pass
 
-    def inject(self, method):
+    def inject(self, method=None):
         if hasattr(method, '__call__') and self._synchronous:
             self._synchronous_handler = method
-    
+        
     def react(self, conn, request):
         self._processing = True
         self._conn = conn
         self._request = request
-        if self._synchronous_handler is not None:
-            # Simple run synchronous handler for test!
-            try:
+
+        try:
+            if self._synchronous_handler is not None:
+                # Simply run synchronous handler for test!
                 chunk = self._synchronous_handler(request)
-                self.write(chunk)
+            else:
+                handler = getattr(self, 'handle_' + request.method)
+                chunk = handler()
+
+            self.write(chunk)
+            self.finish()
+        except HTTPError as e:
+            http_errors = \
+                [HTTPStatusCode.NOT_FOUND, HTTPStatusCode.METHOD_NOT_ALLOWED]
+            if e.args[0] in http_errors:
+                self._generate_response(status_code=e.args[0])
                 self.finish()
-            except HTTPError as e:
-                if e.args[0] == HTTPStatusCode.NOT_FOUND:
-                    self._generate_response(status_code=e.args[0])
-                    self.finish()
-            except Exception as e:
-                # TODO: Log for warning
-                self._generate_response(
-                    status_code=HTTPStatusCode.INTERNAL_SERVER_ERROR)
-                self.finish()
-            return
+        except Exception as e:
+            # TODO: Log for warning
+            raise e
+            self._generate_response(
+                status_code=HTTPStatusCode.INTERNAL_SERVER_ERROR)
+            self.finish()
+        return
     
     def write(self, chunk, left=False):
         if isinstance(chunk, dict):
@@ -250,21 +264,21 @@ class Resource(object):
         self._write_buffer_bytes = 0
         self._response_header.clear()
 
-    def handle_get(self, request):
-        pass
+    def handle_get(self):
+        raise HTTPError(HTTPStatusCode.METHOD_NOT_ALLOWED)
 
-    def handle_post(self, request):
-        pass
-    
-    def handle_put(self, request):
-        pass
+    def handle_post(self):
+        raise HTTPError(HTTPStatusCode.METHOD_NOT_ALLOWED)
 
-    def handle_delete(self, request):
-        pass
+    def handle_put(self):
+        raise HTTPError(HTTPStatusCode.METHOD_NOT_ALLOWED)
 
-    def handle_head(self, request):
-        pass
-    
+    def handle_delete(self):
+        raise HTTPError(HTTPStatusCode.METHOD_NOT_ALLOWED)
+
+    def handle_head(self):
+        raise HTTPError(HTTPStatusCode.METHOD_NOT_ALLOWED)
+
     def _log_access(self):
         if self._request is not None and self._response is not None:
             msg = '%s %s %s' % \
