@@ -2,7 +2,7 @@
 
     wind.web.httpserver
     ~~~~~~~~~~~~~~~~~~~
-    
+
     Http server inherits socketserver.TCPServer.
 
 """

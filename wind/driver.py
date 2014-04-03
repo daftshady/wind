@@ -2,8 +2,8 @@
 
     wind.driver
     ~~~~~~~~~~~
-    
-    Drivers for io multiplexing. 
+
+    Drivers for io multiplexing.
 
 """
 
@@ -18,7 +18,7 @@ def pick():
     `Select`, `Poll` are available in most OS.
     `Epoll` is available on Linux 2.5.44 and newer.
     `KQueue` is available on most BSD.
-    
+
     """
     try:
         candidates = ['select', 'poll', 'epoll', 'kqueue']
@@ -72,13 +72,13 @@ class BaseDriver(object):
 
     def register(self, fd, event_mask):
         raise NotImplemented("Should implement `register` method")
-    
+
     def unregister(self, fd):
         raise NotImplemented("Should implement `unregister` method")
 
     def poll(self, poll_timeout):
         raise NotImplemented("Should implement `poll` method")
-    
+
     @property
     def instance(self):
         return self._driver
@@ -88,7 +88,7 @@ class Select(BaseDriver):
     """Wraps unix system call `select`.
 
     Used when there is no support for `epoll` or `kqueue` in kernel.
-    
+
     """
     def __init__(self):
         self.read_fds = set()
@@ -111,7 +111,7 @@ class Select(BaseDriver):
         self.read_fds.discard(fd)
         self.write_fds.discard(fd)
         self.error_fds.discard(fd)
-    
+
     def modify(self, fd, event_mask):
         self.unregister(fd)
         try:
@@ -119,7 +119,7 @@ class Select(BaseDriver):
         except PollError as e:
             e.args[0] = 'Cannot modify undefined event'
             raise
-    
+
     def poll(self, poll_timeout):
         """Returns `List` of (fd, event) pair
 
@@ -128,7 +128,7 @@ class Select(BaseDriver):
         """
         read, write, error = select.select(
             self.read_fds, self.write_fds, self.error_fds, poll_timeout)
-        
+
         events = Events()
         for fd in read:
             events.add(fd, PollEvents.READ)
@@ -181,7 +181,7 @@ class Kqueue(BaseDriver):
     def unregister(self, fd):
         self.control(fd, self._events[fd], select.KQ_EV_DELETE)
         self._events.pop(fd, None)
-    
+
     def modify(self, fd, event_mask):
         self.unregister(fd)
         try:
@@ -195,10 +195,10 @@ class Kqueue(BaseDriver):
             kevent = self._kevent.read_events(fd, flag)
         elif event_mask & PollEvents.WRITE:
             kevent = self._kevent.write_events(fd, flag)
-        
+
         # Calls low level interface to kevent.
         self._kq.control([kevent], 0, None)
-    
+
     def poll(self, poll_timeout):
         """Returns `List` of (fd, event) pair
 
@@ -217,7 +217,7 @@ class Kqueue(BaseDriver):
                     events.add(fd, PollEvents.ERROR)
                 else:
                     events.add(fd, PollEvents.WRITE)
-            
+
             if event.flags == select.KQ_EV_ERROR:
                 events[fd] = evetns.get(fd, 0) | PollEvents.ERROR
 

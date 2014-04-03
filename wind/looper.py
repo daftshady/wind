@@ -28,7 +28,7 @@ def _eintr_retry(func, *args):
 
 
 class PollLooper(object):
-    
+
     _DEFAULT_POLL_TIMEOUT = 1000
 
     _singleton_lock = threading.Lock()
@@ -49,7 +49,7 @@ class PollLooper(object):
     def instance():
         """Initialize singleton instance of Looper
         with double-checked locking
-        
+
         Returns singleton looper in `main thread`
         """
         if not hasattr(PollLooper, '_instance'):
@@ -62,7 +62,7 @@ class PollLooper(object):
     def attach_handler(self, fd, event_mask, handler):
         self._handlers[fd] = handler
         self._driver.register(fd, event_mask)
-    
+
     def update_handler(self, fd, event_mask):
         self._driver.modify(fd, event_mask)
 
@@ -75,7 +75,7 @@ class PollLooper(object):
         while True:
             if not self._running:
                 break
-            
+
             # Poll returns `List` of (fd, event) tuple
             events = _eintr_retry(self._driver.poll, poll_timeout)
             self._events.update(events)

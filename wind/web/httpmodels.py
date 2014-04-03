@@ -2,7 +2,7 @@
 
     wind.web.httpmodels
     ~~~~~~~~~~~~~~~~~~~
-    
+
     Provides models for http request handling.
 
 """
@@ -24,7 +24,7 @@ class HTTPStatusCode():
     NOT_FOUND = '404'
     METHOD_NOT_ALLOWED = '405'
     INTERNAL_SERVER_ERROR = '500'
-    
+
 
 class HTTPMethod():
     """Class for HTTP methods enum"""
@@ -34,11 +34,11 @@ class HTTPMethod():
     PUT = 'put'
     HEAD = 'head'
     DELETE = 'delete'
-    
+
     @staticmethod
     def all():
         return [
-            HTTPMethod.GET, HTTPMethod.POST, HTTPMethod.PUT, 
+            HTTPMethod.GET, HTTPMethod.POST, HTTPMethod.PUT,
             HTTPMethod.HEAD, HTTPMethod.DELETE
             ]
 
@@ -52,7 +52,7 @@ class HTTPRequestContentType():
 class HTTPHeader(object):
     def __init__(self, dict_={}):
         self._headers = CaseInsensitiveDict(dict_)
-    
+
     def add_content_length(self, value):
         self.add('Content-Length', value)
 
@@ -79,11 +79,11 @@ class HTTPHeader(object):
     def to_dict(self):
         """Returns `CaseInsensitiveDict` of headers"""
         return self._headers
-    
+
     def default(self):
         """Should return `CaseInsensitiveDict`"""
         return CaseInsensitiveDict()
-    
+
     def clear(self):
         self._headers = self.default()
 
@@ -95,7 +95,7 @@ class HTTPResponseHeader(HTTPHeader):
     def __init__(self, dict_={}):
         self._headers = self.default()
         self._headers.update(dict_)
-    
+
     def default(self):
         return CaseInsensitiveDict({
             'Content-Type' : 'text/html; charset=UTF-8',
@@ -104,23 +104,23 @@ class HTTPResponseHeader(HTTPHeader):
 
     def to_json_content(self):
         self._headers['Content-Type'] = 'application/json; charset=UTF-8'
-    
+
 
 class HTTPRequest(object):
     """HTTP Request object"""
     def __init__(self, url=None, method=None, headers={},
         params={}, body=None, auth=None, cookies=None, version=None):
-        
+
         self.url = url
         if isinstance(method, basestring):
             self.method = method.lower()
-        self.headers = headers 
+        self.headers = headers
         self.params = params
         self.body = body
         self.auth = auth
         self.cookies = cookies
         self.version = version
-    
+
     @property
     def path(self):
         return urlparse(self.url).path
@@ -142,7 +142,7 @@ class HTTPResponse(object):
         self.status_code = status_code
         if self.status_code is not None:
             self.reply = self._generate_reply(self.status_code)
-    
+
     def raw(self):
         if self.reply is not None:
             separator = b'\r\n'
@@ -152,7 +152,7 @@ class HTTPResponse(object):
                 raw += k + ': ' + str(v) + separator
             raw += separator
             return raw
-                
+
     def _generate_reply(self, status_code):
         # TODO: Determine HTTP version from request.
         version = 'HTTP/1.1'
@@ -169,11 +169,11 @@ class HTTPResponse(object):
             return reply([version, code.NOT_FOUND, 'Not Found'])
         elif status_code == code.METHOD_NOT_ALLOWED:
             return reply(
-                [version, code.METHOD_NOT_ALLOWED, 
+                [version, code.METHOD_NOT_ALLOWED,
                     'Method Not Allowed'])
         elif status_code == code.INTERNAL_SERVER_ERROR:
             return reply(
-                [version, code.INTERNAL_SERVER_ERROR, 
+                [version, code.INTERNAL_SERVER_ERROR,
                     'Internal Server Error'])
 
     def __repr__(self):
@@ -186,11 +186,11 @@ class HTTPConnection(object):
         self._stream = stream
         self._address = address
         self._close_callback = None
-    
+
     @property
     def stream(self):
         return self._stream
-    
+
     @property
     def address(self):
         return self._address
@@ -222,7 +222,7 @@ class HTTPHandler(object):
     1. Parse header.
     2. Parse body.
     3. Send response if needed.
-    
+
     Methods for the caller:
 
     - __init__(connection)
@@ -257,7 +257,7 @@ class HTTPHandler(object):
                 # XXX: Grap this exception.
                 return
 
-            # Parse first chunk of request 
+            # Parse first chunk of request
             separator = b'\r\n'
             meta, raw_headers = chunk.split(separator, 1)
             method = meta.split()[0]
@@ -279,17 +279,17 @@ class HTTPHandler(object):
             else:
                 if self._request.method == HTTPMethod.GET:
                     self._request.params = self._parse_params(self._request)
-            
+
             self._handle_request()
 
         except IndexError:
             raise WindException('Invalid header on incoming HTTP request')
-    
+
     def _parse_body(self, chunk):
         if self._request is None:
             raise WindException(
                 '_parse_body is not spawned from _parse_header')
-        
+
         self._request.body = chunk
         if self._request.method == HTTPMethod.POST:
             self._request.params = \
@@ -298,15 +298,15 @@ class HTTPHandler(object):
             raise NotImplementedError
 
         self._handle_request()
-        
+
     def _parse_params(self, request):
-        """Parse params in HTTP Request and return params `Dict` 
-        
+        """Parse params in HTTP Request and return params `Dict`
+
         """
         # XXX: Why params pasing methods are in `HTTPHandler`?
         try:
             if request.method == HTTPMethod.GET:
-                return self._parse_get_params(request) 
+                return self._parse_get_params(request)
             elif request.method == HTTPMethod.POST:
                 return self._parse_post_params(request)
             else:
@@ -315,7 +315,7 @@ class HTTPHandler(object):
         except ValueError:
             # XXX: We need to give more details about this error here.
             raise WindException('Error occured while parsing params')
-    
+
     def _parse_get_params(self, request):
         return dict(parse_qsl(urlparse(request.url).query))
 
@@ -340,25 +340,25 @@ class HTTPHandler(object):
                     boundary = pairs[2]
             if not boundary:
                 raise WindException('Multipart header has no boundary')
-            
+
             separator = b'--'
             end = chunk.find(separator + boundary + separator)
             contents = [
                 x for x in chunk[:end].split(separator + boundary) if x]
-            
+
             # Iterate each content to parse data.
             for content in contents:
                 content_end_idx = content.find(b'\r\n\r\n')
                 value = content[content_end_idx+4:-2]
                 elements = content[:content_end_idx].split(';')
                 elements = [x.strip() for x in elements]
-                
+
                 # Separate contents sticked each other.
                 for elem in elements:
                     if b'\r\n' in elem:
                         elements.remove(elem)
                         elements.extend(elem.split(b'\r\n'))
-                
+
                 content_params = CaseInsensitiveDict()
                 def inject_param(raw, separator):
                     pairs = raw.split(separator)
@@ -384,14 +384,14 @@ class HTTPHandler(object):
                 if params is not None:
                     params[name] = value
 
-        except Exception as e:  
+        except Exception as e:
             # TODO: Warn for invalid post body
             raise e
 
     def _handle_request(self):
          if self._app is not None:
             self._app.react(self._conn, self._request)
-       
+
     def __repr__(self):
         return '<HTTPHandler [%s]' % (self._conn.address[0])
 

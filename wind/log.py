@@ -33,9 +33,9 @@ class BaseLogger(object):
     """Wind base log class for general logging
     By default, streamHandler is attached to base, access logger.
     If you want to disable stream logging or change default level
-    of this Logger(if needed), make custom `Logger` inheriting this class. 
+    of this Logger(if needed), make custom `Logger` inheriting this class.
     It is strongly advised you that you do not override constructor.
-    
+
     Methods for the caller:
 
     - __init__(self)
@@ -43,12 +43,12 @@ class BaseLogger(object):
     - attach_stream(log_type, log_level, format_=None)
     - attach_file(filename=None, format_=None, log_type=LogType.BASE)
     - log(msg, log_type=LogType.BASE, log_level=LogLevel.INFO)
-    
+
     Methods that should not be overrided:
     - __init__(self)
 
     """
-    def __init__(self): 
+    def __init__(self):
         """BaseLogger Initializer
         Should not be overrided.
 
@@ -67,7 +67,7 @@ class BaseLogger(object):
         self._access_logger.setLevel(LogLevel.INFO.code)
         self.attach_stream(LogType.BASE, LogLevel.ERROR)
         self.attach_stream(LogType.ACCESS, LogLevel.INFO)
-    
+
     # Public accessor declarations.
     @property
     def base(self):
@@ -76,7 +76,7 @@ class BaseLogger(object):
     @property
     def access(self):
         return self._access_logger
-    
+
     @property
     def formatter(self):
         return logging.Formatter(self._format, self._date_format)
@@ -96,7 +96,7 @@ class BaseLogger(object):
     def attach_stream(self, log_type, log_level, format_=None):
         """Start printing logging output with standard stream.
         :param log_type: logger selector.
-        :param log_level: log level for streamHandler. 
+        :param log_level: log level for streamHandler.
         This should be `LogLevel` object.(We are wrapping log level of
         python default logging library for the consistency of usage)
         """
@@ -128,7 +128,7 @@ class BaseLogger(object):
             logging.getLogger(log_type).addHandler(file_handler)
         except (AttributeError, TypeError) as e:
             raise LoggerError(e)
-    
+
     def log(self, msg, log_type=LogType.BASE, log_level=LogLevel.INFO):
         """Log message to logger
         :param msg: actual log message.

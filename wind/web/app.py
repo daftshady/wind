@@ -2,7 +2,7 @@
 
     wind.web.app
     ~~~~~~~~~~~~
-    
+
     Web application serving http requests.
 
 """
@@ -11,7 +11,7 @@ import json
 from urlparse import urlparse, parse_qs
 from wind.log import wind_logger, LogType
 from wind.web.httpmodels import (
-    HTTPRequest, HTTPResponse, HTTPMethod, 
+    HTTPRequest, HTTPResponse, HTTPMethod,
     HTTPStatusCode, HTTPResponseHeader)
 from wind.exceptions import ApplicationError, HTTPError
 from wind.web.datastructures import FlexibleDeque, CaseInsensitiveDict
@@ -27,7 +27,7 @@ class WindApp(object):
     We expect that our app usage code will be like this, and it works now.
     This usage interface is made for the purpose of testing `performance`.
     Therefore, it may be fully revised.
-    
+
     `hello wind!` Example::
 
         from wind.web.app import WindApp, path
@@ -45,7 +45,7 @@ class WindApp(object):
     """
     def __init__(self, urls):
         self._dispatcher = PathDispatcher(urls)
-    
+
     def react(self, conn, request):
         if not isinstance(request, HTTPRequest):
             raise ApplicationError('Can only react to `HTTPRequest`')
@@ -58,10 +58,10 @@ class WindApp(object):
 
             # Let's make a path to error.
             path = Path(self._error_handler, error_path=True)
-        
+
         # Synchronously run handling method. (Temporarily)
         path.follow(conn, request)
- 
+
     def _error_handler(self, request):
         raise HTTPError(HTTPStatusCode.NOT_FOUND)
 
@@ -74,7 +74,7 @@ class PathDispatcher(object):
         except (ValueError, TypeError) as e:
             raise ApplicationError(
                 'Form should be `List` of `(handler, route, method)` `Tuple`.')
-    
+
     def lookup(self, url):
         for path in self._paths:
             if url == path.route:
@@ -85,13 +85,13 @@ class Path(object):
     """Contains information needed for handling HTTP request."""
 
     def __init__(
-        self, handler, route=None, methods=[], 
+        self, handler, route=None, methods=[],
         error_path=False, **kwargs):
         """Initialize path.
-        @param handler: 
+        @param handler:
             Method or Class inherits from `Resource`.
         @param route: URI path when serving HTTP request.
-        @param methods: 
+        @param methods:
             Allowed HTTP methods. `List` of string indicating method.
 
         """
@@ -107,11 +107,11 @@ class Path(object):
             self._route = self._process_route(route)
             self._methods = \
                 [self._validate_method(method.lower()) for method in methods]
-    
+
     @property
     def route(self):
         return self._route
-    
+
     @property
     def methods(self):
         return self._methods
@@ -119,19 +119,19 @@ class Path(object):
     def allowed(self, method):
         """Assume param `method` has already converted to lowercase"""
         return method in self._methods
-    
+
     def follow(self, conn, request):
         """Go after the path!
         When this method is called from app, `Resource` in path will
         react to HTTP request.
-        
+
         """
         self._handler.react(conn, request)
 
     def _validate_method(self, method):
         if not method in HTTPMethod.all():
             raise ApplicationError("Unsupported HTTP method '%s'" % method)
-    
+
     def _wrap_handler(self, handler):
         """
         If handler is method, wraps handler with `Resource` initialized with
@@ -145,7 +145,7 @@ class Path(object):
         resource = Resource(path=self)
         resource.inject(method=handler)
         return resource
-    
+
     def _process_route(self, route):
         """Process with regex in route"""
         # XXX: Not implemented yet
@@ -158,7 +158,7 @@ class Resource(object):
     handle HTTP request.
     This class may be fully revised later in the level that does
     not break overall apis.
-    
+
     Methods for the caller:
 
     - __init__(path=None)
@@ -193,7 +193,7 @@ class Resource(object):
     def inject(self, method=None):
         if hasattr(method, '__call__') and self._synchronous:
             self._synchronous_handler = method
-        
+
     def react(self, conn, request):
         self._processing = True
         self._conn = conn
@@ -222,7 +222,7 @@ class Resource(object):
                 status_code=HTTPStatusCode.INTERNAL_SERVER_ERROR)
             self.finish()
         return
-    
+
     def write(self, chunk, left=False):
         if isinstance(chunk, dict):
             chunk = json.dumps(chunk)
@@ -243,11 +243,11 @@ class Resource(object):
         self._write_buffer.gather(self._write_buffer_bytes)
         self._conn.stream.write(self._write_buffer.popleft(), None)
         self._conn.close()
-        
+
         self._log_access()
         self._processing = False
         self._clear()
-    
+
     def _generate_response(self, status_code=HTTPStatusCode.OK):
         # Generate response headers
         if self._write_buffer:
@@ -282,7 +282,7 @@ class Resource(object):
     def _log_access(self):
         if self._request is not None and self._response is not None:
             msg = '%s %s %s' % \
-                (self._request.method.upper(), self._request.url, 
+                (self._request.method.upper(), self._request.url,
                     self._response.status_code)
             wind_logger.log(msg, LogType.ACCESS)
 

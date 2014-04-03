@@ -40,7 +40,7 @@ class FlexibleDeque(collections.deque):
             len_ = len(data)
             if counted + len_ < chunk_size:
                 append_chunk_(data)
-                counted += len_ 
+                counted += len_
 
                 if not self:
                     append_(''.join(chunks))
@@ -70,7 +70,7 @@ class FlexibleDeque(collections.deque):
             return self.popleft()
         else:
             return self.pop()
-    
+
     def __repr__(self):
         name = self.__class__.__name__
         if not self:
@@ -94,7 +94,7 @@ class FlexibleDict(collections.MutableMapping):
             return None
         else:
             return self._store.get(key)[1]
-    
+
     def __setitem__(self, key, value):
         self._store[self._transform(key)] = (key, value)
 
@@ -111,7 +111,7 @@ class FlexibleDict(collections.MutableMapping):
 class CaseInsensitiveDict(FlexibleDict):
     """Case-insensitivie `Dict`.
     Keys of this dict object will be case-insensitive.
-    
+
         >>> dict_ = CaseInsensitvieDict()
         >>> dict_['club'] = 'octagon'
         >>> dict_.get('CLUB')

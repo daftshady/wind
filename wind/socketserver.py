@@ -50,7 +50,7 @@ class BaseServer(object):
         """
         self.looper = looper or Looper.instance()
         self._sockets = []
-    
+
     def bind(self, address, port):
         """Makes this server to be bound to address in specific port.
         This method create sockets and calls `bind` method in `socket` api.
@@ -61,7 +61,7 @@ class BaseServer(object):
     def listen(self, address, port):
         """Makes sockets to be bound to address in specific port
         and attachs accept handler to event observer(`looper`)
-        
+
         """
         raise NotImplementedError
 
@@ -88,13 +88,13 @@ class BaseServer(object):
         """Bind sockets to looper.
         This must be called before actual run of server
         because initialized sockets must be registered to looper.
-        
+
         @param sockets: Extra sockets to be bound on this server.
         """
         self._sockets.extend(sockets)
         for socket_ in self._sockets:
             self._attach_accept_handler(socket_, self._event_handler)
-                
+
     def _attach_accept_handler(self, socket_, callback):
         """Attach `_accept_handler` to socket"""
         def _accept_handler(fd, event_mask):
@@ -107,7 +107,7 @@ class BaseServer(object):
                     if e.args[0] in EWOULDBLOCK:
                         return
                     raise
-            
+
                 callback(conn, address)
 
         if hasattr(self.looper, 'attach_handler'):
@@ -135,12 +135,12 @@ class TCPServer(BaseServer):
     - bind(address, port)
     - listen(address, port)
     - attach_sockets(sockets=[])
-    - run_simple(address, port)  
-    
+    - run_simple(address, port)
+
     Methods that should be overrided
 
     - _event_handler(conn, address)
-    
+
     """
 
     # It will consume kernel resource
@@ -151,16 +151,16 @@ class TCPServer(BaseServer):
 
         """
         super(TCPServer, self).__init__(looper=looper)
-    
+
     def bind(self, address, port):
         """Binds socket on specified address, port"""
         self._sockets.append(self._bind_socket(address, port))
-    
+
     def _bind_socket(self, address, port):
         """Creates listening non-blocking socket bound to given address
-        
-        TODO: 
-        Sockets should be bound all ip address if `address` is 
+
+        TODO:
+        Sockets should be bound all ip address if `address` is
         a hostname.
         """
         socket_ = self._create_socket()
@@ -175,7 +175,7 @@ class TCPServer(BaseServer):
         socket_.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         socket_.setblocking(0)
         return socket_
-  
+
     def listen(self, address, port):
         """Binds socket and actually attach this server on looper"""
         self.bind(address, port)
