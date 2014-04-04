@@ -103,7 +103,8 @@ class Path(object):
             handler = self._wrap_handler(handler)
 
         self._handler = handler
-        if not error_path:
+        self._error_path = error_path
+        if not self._error_path:
             self._route = self._process_route(route)
             self._methods = \
                 [self._validate_method(method.lower()) for method in methods]
@@ -116,9 +117,14 @@ class Path(object):
     def methods(self):
         return self._methods
 
+    @property
+    def error_path(self):
+        return self._error_path
+
     def allowed(self, method):
         """Assume param `method` has already converted to lowercase"""
-        return method in self._methods
+        if hasattr(self, '_methods'):
+            return method in self._methods
 
     def follow(self, conn, request):
         """Go after the path!
@@ -131,6 +137,7 @@ class Path(object):
     def _validate_method(self, method):
         if not method in HTTPMethod.all():
             raise ApplicationError("Unsupported HTTP method '%s'" % method)
+        return method
 
     def _wrap_handler(self, handler):
         """
@@ -200,6 +207,10 @@ class Resource(object):
         self._request = request
 
         try:
+            if not self._path.allowed(request.method) \
+                and not self._path.error_path:
+                self._raise_not_allowed()
+
             if self._synchronous_handler is not None:
                 # Simply run synchronous handler for test!
                 chunk = self._synchronous_handler(request)
@@ -218,6 +229,8 @@ class Resource(object):
                 self.finish()
         except Exception as e:
             # TODO: Log for warning
+            print e.args
+            raise e
             self._generate_response(
                 status_code=HTTPStatusCode.INTERNAL_SERVER_ERROR)
             self.finish()
@@ -265,18 +278,21 @@ class Resource(object):
         self._response_header.clear()
 
     def handle_get(self):
-        raise HTTPError(HTTPStatusCode.METHOD_NOT_ALLOWED)
+        self._raise_not_allowed()
 
     def handle_post(self):
-        raise HTTPError(HTTPStatusCode.METHOD_NOT_ALLOWED)
+        self._raise_not_allowed()
 
     def handle_put(self):
-        raise HTTPError(HTTPStatusCode.METHOD_NOT_ALLOWED)
+        self._raise_not_allowed()
 
     def handle_delete(self):
-        raise HTTPError(HTTPStatusCode.METHOD_NOT_ALLOWED)
+        self._raise_not_allowed()
 
     def handle_head(self):
+        self._raise_not_allowed()
+
+    def _raise_not_allowed(self):
         raise HTTPError(HTTPStatusCode.METHOD_NOT_ALLOWED)
 
     def _log_access(self):
