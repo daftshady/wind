@@ -46,7 +46,7 @@ class WindApp(object):
                 path(HelloResource, route='/resource', methods=['get'])
                 ])
         server = HTTPServer(app=app)
-        server.run_simple('127.0.0.1', 7000)
+        server.run_simple('127.0.0.1', 9000)
 
     """
 

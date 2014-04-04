@@ -33,7 +33,7 @@ class BaseServer(object):
     - bind(address, port)
     - listen(address, port)
     - attach_sockets(sockets=[])
-    - run_simple(address, port)
+    - run_simple(address, port=9000)
 
     Methods that may be overrided:
 
@@ -69,7 +69,7 @@ class BaseServer(object):
         """Attach extra sockets to tcp server instance"""
         self._bind_to_looper(sockets=sockets)
 
-    def run_simple(self, address, port):
+    def run_simple(self, address, port=9000):
         """Simply run server with single-process"""
         self.listen(address, port)
         if hasattr(self.looper, 'run'):
@@ -135,7 +135,7 @@ class TCPServer(BaseServer):
     - bind(address, port)
     - listen(address, port)
     - attach_sockets(sockets=[])
-    - run_simple(address, port)
+    - run_simple(address, port=9000)
 
     Methods that should be overrided
 
