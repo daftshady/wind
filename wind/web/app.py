@@ -170,9 +170,13 @@ class Resource(object):
 
     - __init__(path=None)
     - react(conn, request)
+    - inject(method=None)
+    - write(chunk, left=False)
+    - finish()
 
-    Methods may be overrided
+    Methods may be overrided:
 
+    - initialize()
     - handle_get(request)
     - handle_post(request)
     - handle_put(request)
