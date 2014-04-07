@@ -7,13 +7,11 @@
 
 """
 
-import errno
 import socket
 from wind.looper import Looper
 from wind.driver import PollEvents
-from wind.exceptions import StreamError
 from wind.web.datastructures import FlexibleDeque
-from wind.socketserver import EWOULDBLOCK, ECONNRESET
+from wind.exceptions import StreamError, EWOULDBLOCK, ECONNRESET
 
 
 class StreamBuffer(FlexibleDeque):

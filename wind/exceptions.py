@@ -8,6 +8,13 @@
 """
 
 
+import errno
+
+# Defines frequently used collections of socket.error
+EWOULDBLOCK = (errno.EWOULDBLOCK, errno.EAGAIN)
+ECONNRESET = (errno.ECONNRESET, errno.ECONNABORTED, errno.EPIPE)
+
+
 class WindException(Exception):
     """Base exception class for ``wind``"""
     pass

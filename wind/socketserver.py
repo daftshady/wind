@@ -9,15 +9,10 @@
 
 
 import socket
-import errno
 from wind.looper import Looper
 from wind.driver import PollEvents
-from wind.exceptions import SocketError, ServerError
-
-
-# Defines frequently used collections of socket.error
-EWOULDBLOCK = (errno.EWOULDBLOCK, errno.EAGAIN)
-ECONNRESET = (errno.ECONNRESET, errno.ECONNABORTED, errno.EPIPE)
+from wind.exceptions import \
+    SocketError, ServerError, EWOULDBLOCK, ECONNRESET
 
 
 # XXX: Remove deep relation with Server and Looper

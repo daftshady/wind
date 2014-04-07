@@ -8,7 +8,6 @@
 """
 
 import logging
-
 from wind.exceptions import LoggerError
 
 
