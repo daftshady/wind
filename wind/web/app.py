@@ -8,6 +8,7 @@
 """
 
 import json
+import traceback
 from urlparse import urlparse, parse_qs
 from wind.log import wind_logger, LogType
 from wind.web.httpmodels import (
@@ -239,11 +240,10 @@ class Resource(object):
                 self._generate_response(status_code=e.args[0])
                 self.finish()
         except Exception as e:
-            # TODO: Log for warning
+            wind_logger.log(traceback.format_exc(), LogType.ACCESS)
             self._generate_response(
                 status_code=HTTPStatusCode.INTERNAL_SERVER_ERROR)
             self.finish()
-        return
 
     def write(self, chunk, left=False):
         if isinstance(chunk, dict):
