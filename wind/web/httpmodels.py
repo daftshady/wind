@@ -214,7 +214,7 @@ class HTTPConnection(object):
                     'Provide valid close callback in Connection')
 
     def __repr__(self):
-        return '<HTTPConnection [%s]>' % (self.address)
+        return '<HTTPConnection [%s]>' % (self.address[0])
 
 
 class HTTPHandler(object):
