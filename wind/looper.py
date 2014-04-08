@@ -90,7 +90,7 @@ class PollLooper(object):
         self._handlers.pop(fd, None)
 
     def attach_callback(self, callback):
-        self._callback.append(callback)
+        self._callbacks.append(callback)
 
     def _run_callback(self):
         try:
