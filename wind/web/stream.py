@@ -161,7 +161,7 @@ class BaseStream(object):
             self._attach_read_handler()
             return
 
-        if not self._read():
+        if self._read() == -1:
             self._attach_read_handler()
             return
 
@@ -184,7 +184,7 @@ class BaseStream(object):
 
     def _read(self):
         """Read chunk from `_read_buffer` and run callback with that chunk.
-        Returns `False` if read params are invalid, or read is not completed.
+        Returns `-1` if read params are invalid, or read is not completed.
         (if there is more data to be read)
 
         """
@@ -194,7 +194,7 @@ class BaseStream(object):
         read_bytes = 0
         if self._bytes_to_read is not None:
             if self._read_buffer_bytes < self._bytes_to_read:
-                return False
+                return -1
 
             read_bytes = min(self._bytes_to_read, self._read_buffer_bytes)
             self._run_callback(
@@ -222,7 +222,7 @@ class BaseStream(object):
                 self._read_buffer.gather(
                     len(self._read_buffer[0] + self._read_buffer[1]))
         else:
-            return False
+            return -1
 
 
     def _pop_chunk(self, read_bytes):
