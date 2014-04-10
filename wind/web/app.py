@@ -8,6 +8,7 @@
 """
 
 import json
+import types
 import traceback
 from urlparse import urlparse, parse_qs
 from wind.log import wind_logger, LogType
@@ -103,13 +104,10 @@ class Path(object):
             Allowed HTTP methods. `List` of string indicating method.
 
         """
-        # self._handler should be `Resource` object.
-        try:
-            if issubclass(handler, Resource):
-                handler = handler(path=self)
-        except TypeError as e:
+        # if handler is not method binding, delay handler creation time
+        # to time when actually serving request.
+        if isinstance(handler, types.FunctionType):
             handler = self._wrap_handler(handler)
-
         self._handler = handler
         self._error_path = error_path
         if not self._error_path:
@@ -140,7 +138,11 @@ class Path(object):
         react to HTTP request.
 
         """
-        self._handler.react(conn, request)
+        if isinstance(self._handler, type):
+            # Actual handler creation for user-defined `Resource`.
+            self._handler(path=self).react(conn, request)
+        else:
+            self._handler.react(conn, request)
 
     def _validate_method(self, method):
         if not method in HTTPMethod.all():
