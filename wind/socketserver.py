@@ -24,7 +24,7 @@ class BaseServer(object):
 
     Methods for the caller:
 
-    - __init__(self, looper=None)
+    - __init__(looper=None)
     - bind(address, port)
     - listen(address, port)
     - attach_sockets(sockets=[])
