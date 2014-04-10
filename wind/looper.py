@@ -109,19 +109,25 @@ class PollLooper(object):
         self._handlers.pop(fd, None)
 
     def attach_callback(self, callback):
+        """Attach callback to `looper`.
+        Callback would be run in the next loop.
+        If main thread is pending in `poll`, our heartbeat
+        will force it to bypass `poll` immediately.
+
+        """
         self._callbacks.append(callback)
         if hasattr(self, '_heartbeat'):
             self._heartbeat.begin()
 
     def _run_callback(self):
-        try:
-            for callback in self._callbacks:
+        for callback in self._callbacks:
+            try:
                 callback()
-            self._callbacks = []
-        except Exception as e:
-            # TODO: Log exception.
-            # We are eatting error!
-            pass
+            except Exception as e:
+                # TODO: Log exception.
+                # We are eatting error!
+                pass
+        self._callbacks = []
 
     def run(self, poll_timeout=_DEFAULT_POLL_TIMEOUT):
         self._running = True
