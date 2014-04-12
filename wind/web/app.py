@@ -106,7 +106,7 @@ class Path(object):
         """
         # if handler is not method binding, delay handler creation time
         # to time when actually serving request.
-        if isinstance(handler, types.FunctionType):
+        if isinstance(handler, (types.FunctionType, types.MethodType)):
             handler = self._wrap_handler(handler)
         self._handler = handler
         self._error_path = error_path
