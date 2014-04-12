@@ -22,7 +22,9 @@ def pick():
     """
     try:
         candidates = ['select', 'poll', 'epoll', 'kqueue']
-        driver = filter(lambda x : hasattr(select, x), candidates)[-1]
+        # Cast result of `filter` because `filter` no longer returns
+        # `list` in Python 3.x
+        driver = list(filter(lambda x : hasattr(select, x), candidates))[-1]
         return eval(driver.title())().instance
     except (IndexError, NameError) as e:
         raise WindException('No available event driver')
