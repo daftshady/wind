@@ -11,13 +11,13 @@ import collections
 
 
 class FlexibleDeque(collections.deque):
-    """Deque for easily handling separable object like `BaseString`."""
+    """Deque for easily handling separable object like `bytes`."""
 
     def gather(self, chunk_size, left=True):
-        """Gather string to side of Deque by `chunk_size`
-        This method assumes that all items in `deque` are `BaseString`
+        """Gather bytes to side of Deque by `chunk_size`
+        This method assumes that all items in `deque` are `bytes`
 
-            >>> q = FlexibleDeque(['y', '-', 'combinator', '...'])
+            >>> q = FlexibleDeque([b'y', b'-', b'combinator', b'...'])
             >>> q.gather(12)
             >>> q
             FlexibleDeque(['y-combinator','...'])
@@ -43,7 +43,7 @@ class FlexibleDeque(collections.deque):
                 counted += len_
 
                 if not self:
-                    append_(''.join(chunks))
+                    append_(b''.join(chunks))
                     break
             else:
                 slash = counted + len_ - chunk_size
@@ -56,8 +56,7 @@ class FlexibleDeque(collections.deque):
                     append_chunk_(data[slash:])
                     if slash < len_:
                         append_(data[:slash])
-
-                append_(''.join(chunks))
+                append_(b''.join(chunks))
                 break
 
     def throw(self, chunk_size, left=True):
