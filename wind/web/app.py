@@ -10,8 +10,8 @@
 import json
 import types
 import traceback
-from urlparse import urlparse, parse_qs
 from wind.log import wind_logger, LogType
+from wind.compat import urlparse, parse_qsl
 from wind.web.httpmodels import (
     HTTPRequest, HTTPResponse, HTTPMethod,
     HTTPStatusCode, HTTPResponseHeader)

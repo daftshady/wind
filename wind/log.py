@@ -8,6 +8,7 @@
 """
 
 import logging
+from wind.compat import basestring
 from wind.exceptions import LoggerError
 
 

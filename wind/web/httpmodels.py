@@ -7,11 +7,9 @@
 
 """
 
-# It doesn't guarantee backward compatibility.
-from urlparse import urlparse, parse_qsl
-
 from wind.web.stream import SocketStream
 from wind.exceptions import WindException
+from wind.compat import urlparse, parse_qsl, basestring
 from wind.web.datastructures import CaseInsensitiveDict
 
 

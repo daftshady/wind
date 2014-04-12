@@ -10,6 +10,7 @@
 import socket
 from wind.looper import Looper
 from wind.driver import PollEvents
+from wind.compat import basestring
 from wind.web.datastructures import FlexibleDeque
 from wind.exceptions import StreamError, EWOULDBLOCK, ECONNRESET
 
