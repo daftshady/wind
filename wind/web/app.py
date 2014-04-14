@@ -16,7 +16,7 @@ from wind.web.httpmodels import (
     HTTPRequest, HTTPResponse, HTTPMethod,
     HTTPStatusCode, HTTPResponseHeader)
 from wind.exceptions import ApplicationError, HTTPError
-from wind.web.datastructures import FlexibleDeque, CaseInsensitiveDict
+from wind.datastructures import FlexibleDeque, CaseInsensitiveDict
 
 
 def path(handler, route='', methods=[]):
@@ -150,8 +150,7 @@ class Path(object):
         return method
 
     def _wrap_handler(self, handler):
-        """
-        If handler is method, wraps handler with `Resource` initialized with
+        """If handler is method, wraps handler with `Resource` initialized with
         this path. Return newly created `Resource` object.
 
         """

@@ -1,7 +1,7 @@
 """
 
-    wind.web.datastructures
-    ~~~~~~~~~~~~~~~~~~~~~~~
+    wind.datastructures
+    ~~~~~~~~~~~~~~~~~~~
 
     Useful datastructures.
 

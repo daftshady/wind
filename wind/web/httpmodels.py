@@ -9,8 +9,8 @@
 
 from wind.web.stream import SocketStream
 from wind.exceptions import WindException
+from wind.datastructures import CaseInsensitiveDict
 from wind.compat import urlparse, parse_qsl, basestring
-from wind.web.datastructures import CaseInsensitiveDict
 
 
 class HTTPStatusCode():
