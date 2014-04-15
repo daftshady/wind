@@ -10,6 +10,7 @@
 from wind.web.stream import SocketStream
 from wind.exceptions import WindException
 from wind.datastructures import CaseInsensitiveDict
+from wind.web.codec import encode, to_str, decode_dict
 from wind.compat import urlparse, parse_qsl, basestring
 
 
@@ -144,10 +145,9 @@ class HTTPResponse(object):
     def raw(self):
         if self.reply is not None:
             separator = b'\r\n'
-            raw = self.reply + separator
+            raw = encode(self.reply) + separator
             for k, v in self.headers.to_dict().items():
-                # XXX: Is `str` has compatibility?
-                raw += k + ': ' + str(v) + separator
+                raw += encode(k) + b': ' + encode(v) + separator
             raw += separator
             return raw
 
@@ -265,11 +265,13 @@ class HTTPHandler(object):
             raw_headers = raw_headers.split(separator)
             raw_headers = filter(lambda x:x, raw_headers)
             headers = HTTPHeader(
-                dict([raw.split(': ', 1) for raw in raw_headers]))
+                dict(to_str(raw.split(b': ', 1)) for raw in raw_headers))
 
             # Generate `HTTPRequest`
+            # Convert bytes of `url`, `method` to str so that `HTTPRequest`
+            # has only request params that is `str` type.
             self._request = HTTPRequest(
-                url=url, method=method, headers=headers)
+                url=to_str(url), method=to_str(method), headers=headers)
             content_length = self._request.headers.content_length
             if content_length != 0:
                 self._conn.stream.read_bytes(content_length, self._parse_body)
@@ -315,18 +317,18 @@ class HTTPHandler(object):
             raise WindException('Error occured while parsing params')
 
     def _parse_get_params(self, request):
-        return dict(parse_qsl(urlparse(request.url).query))
+        return decode_dict(dict(parse_qsl(urlparse(request.url).query)))
 
     def _parse_post_params(self, request):
         if request.headers. \
             content_type.startswith(HTTPRequestContentType.DEFAULT):
-            return dict(parse_qsl(request.body))
+            return decode_dict(dict(parse_qsl(request.body)))
         elif request.headers. \
             content_type.startswith(HTTPRequestContentType.MULTIPART):
             params = {}
             self._parse_multipart(
                 request.headers.content_type, request.body, params=params)
-            return params
+            return decode_dict(params)
 
     def _parse_multipart(self, content_type, chunk, params=None):
         try:
