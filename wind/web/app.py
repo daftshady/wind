@@ -10,6 +10,7 @@
 import json
 import types
 import traceback
+from wind.web.codec import encode
 from wind.log import wind_logger, LogType
 from wind.compat import urlparse, parse_qsl
 from wind.web.httpmodels import (
@@ -252,6 +253,7 @@ class Resource(object):
             self._response_header.to_json_content()
 
         if chunk:
+            chunk = encode(chunk)
             if left:
                 self._write_buffer.appendleft(chunk)
             else:
