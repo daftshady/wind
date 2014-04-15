@@ -58,3 +58,8 @@ class HTTPError(WindException):
 class LoggerError(WindException):
     """Logger error occured"""
     pass
+
+
+class CodecError(WindException):
+    """Codec error occured"""
+    pass
