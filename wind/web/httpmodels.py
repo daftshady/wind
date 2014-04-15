@@ -152,8 +152,7 @@ class HTTPResponse(object):
             return raw
 
     def _generate_reply(self, status_code):
-        # TODO: Determine HTTP version from request.
-        version = 'HTTP/1.1'
+        version = self.request.version
         def reply(list_):
             return ' '.join(list_)
         code = HTTPStatusCode
@@ -258,8 +257,7 @@ class HTTPHandler(object):
             # Parse first chunk of request
             separator = b'\r\n'
             meta, raw_headers = chunk.split(separator, 1)
-            method = meta.split()[0]
-            url = meta.split()[1]
+            method, url, version = meta.split()
 
             # Generate Headers Dict.
             raw_headers = raw_headers.split(separator)
@@ -271,7 +269,8 @@ class HTTPHandler(object):
             # Convert bytes of `url`, `method` to str so that `HTTPRequest`
             # has only request params that is `str` type.
             self._request = HTTPRequest(
-                url=to_str(url), method=to_str(method), headers=headers)
+                url=to_str(url), method=to_str(method),
+                version=to_str(version), headers=headers)
             content_length = self._request.headers.content_length
             if content_length != 0:
                 self._conn.stream.read_bytes(content_length, self._parse_body)

@@ -280,7 +280,7 @@ class Resource(object):
                 add_content_length(self._write_buffer_bytes)
 
         self._response = HTTPResponse(
-            headers=self._response_header.to_dict(),
+            request=self._request, headers=self._response_header.to_dict(),
             status_code=status_code)
 
     def _clear(self):
