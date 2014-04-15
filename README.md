@@ -1,6 +1,6 @@
 Wind: Super-fast web framework
 ==============================
-Wind is microframework based on asynchronous networking library benchmarking `tornado`.
+Wind is microframework based on asynchronous, non-blocking server benchmarking `tornado`.
 
 Usage sketch.
 
