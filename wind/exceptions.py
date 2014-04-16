@@ -35,8 +35,8 @@ class PollError(WindException):
     pass
 
 
-class LooperError(WindException):
-    """Looper error occured"""
+class ReactorError(WindException):
+    """Reactor error occured"""
     pass
 
 

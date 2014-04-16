@@ -141,7 +141,7 @@ class Select(BaseDriver):
         return events.items()
 
     def fds(self):
-        """Returns all fds observed in this event looper"""
+        """Returns all fds observed in this event reactor"""
         return set(chain(self.read_fds, self.write_fds, self.error_fds))
 
 

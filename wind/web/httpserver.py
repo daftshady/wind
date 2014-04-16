@@ -13,7 +13,7 @@ from wind.web.httpmodels import HTTPHandler
 
 class HTTPServer(TCPServer):
     """HTTPServer class"""
-    def __init__(self, looper=None, app=None, *args, **kwargs):
+    def __init__(self, reactor=None, app=None, *args, **kwargs):
         self._app = app
         super(HTTPServer, self).__init__(*args, **kwargs)
 

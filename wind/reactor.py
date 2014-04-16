@@ -1,7 +1,7 @@
 """
 
-    wind.looper
-    ~~~~~~~~~~~
+    wind.reactor
+    ~~~~~~~~~~~~
 
     Handles io loop for serving client request.
 
@@ -13,11 +13,11 @@ import select
 import threading
 
 from wind.driver import pick, Select, PollEvents
-from wind.exceptions import LooperError, EWOULDBLOCK
+from wind.exceptions import ReactorError, EWOULDBLOCK
 
 
-class PollLooper(object):
-    """Event looper powering io multiplexing.
+class PollReactor(object):
+    """Event reactor powering io multiplexing.
 
     Methods for the caller.
 
@@ -45,7 +45,7 @@ class PollLooper(object):
         :param driver: Actual unix system call implementing io multiplexing
 
         """
-        super(PollLooper, self).__init__()
+        super(PollReactor, self).__init__()
         self._running = False
         self._handlers = {}
         self._events = {}
@@ -58,7 +58,7 @@ class PollLooper(object):
         self._setup_heartbeat()
 
     def _setup_heartbeat(self):
-        """Initialize heartbeat for looper instance and
+        """Initialize heartbeat for reactor instance and
         attach one byte handler.
 
         """
@@ -69,17 +69,17 @@ class PollLooper(object):
 
     @staticmethod
     def instance():
-        """Initialize singleton instance of Looper
+        """Initialize singleton instance of Reactor
         with double-checked locking
 
-        Returns singleton looper in `main thread`
+        Returns singleton reactor in `main thread`
         """
-        if not hasattr(PollLooper, '_instance'):
-            with PollLooper._singleton_lock:
-                if not hasattr(PollLooper, '_instance'):
+        if not hasattr(PollReactor, '_instance'):
+            with PollReactor._singleton_lock:
+                if not hasattr(PollReactor, '_instance'):
                     # Choose suitable driver here.
-                    PollLooper._instance = PollLooper(driver=pick())
-        return PollLooper._instance
+                    PollReactor._instance = PollReactor(driver=pick())
+        return PollReactor._instance
 
     def attach_handler(self, fd, event_mask, handler):
         """Attach event handler to given fd.
@@ -109,7 +109,7 @@ class PollLooper(object):
         self._handlers.pop(fd, None)
 
     def attach_callback(self, callback):
-        """Attach callback to `looper`.
+        """Attach callback to `reactor`.
         Callback would be run in the next loop.
         If main thread is pending in `poll`, our heartbeat
         will force it to bypass `poll` immediately.
@@ -163,12 +163,12 @@ class PollLooper(object):
     def stop(self):
         self._running = False
 
-Looper = PollLooper
+Reactor = PollReactor
 
 
 class Heartbeat(object):
-    """Heartbeat for looper.
-    if another thread tries to attach callback while `looper`
+    """Heartbeat for reactor.
+    if another thread tries to attach callback while `reactor`
     is hanging inside the poll, we should bypass poll and rush
     into a next loop because callback may be executed in the next loop.
     We will force it by sending one byte request.
@@ -220,7 +220,7 @@ class Heartbeat(object):
             pass
 
     def begin(self):
-        """Start new heartbeat, which will force looper to run"""
+        """Start new heartbeat, which will force reactor to run"""
         try:
             self._writer.send(b'q')
         except socket.error as e:
@@ -230,7 +230,7 @@ class Heartbeat(object):
                 raise e
 
     def end(self):
-        """This method is attached to looper to finish one hearbeat cycle
+        """This method is attached to reactor to finish one hearbeat cycle
         by receiving one byte from heartbeat writer.
 
         """

@@ -8,7 +8,7 @@
 """
 
 import socket
-from wind.looper import Looper
+from wind.reactor import Reactor
 from wind.driver import PollEvents
 from wind.compat import basestring
 from wind.datastructures import FlexibleDeque
@@ -58,13 +58,13 @@ class BaseStream(object):
 
     """
 
-    def __init__(self, looper=None, chunk_size=4096):
+    def __init__(self, reactor=None, chunk_size=4096):
         """Initialize and open base stream.
 
         @param chunk_size : chunk size for read.
 
         """
-        self._looper = looper or Looper.instance()
+        self._reactor = reactor or Reactor.instance()
         self._read_buffer = StreamBuffer()
         self._write_buffer = StreamBuffer()
         self._read_chunk_size = chunk_size
@@ -78,7 +78,7 @@ class BaseStream(object):
         self._delimiter = None
         self._include_delimiter = None
 
-        # Saves asynchronous event handled by `looper`. (PollEvents)
+        # Saves asynchronous event handled by `reactor`. (PollEvents)
         self._handler_event = None
 
         self._read_callback = None
@@ -101,7 +101,7 @@ class BaseStream(object):
         """Make this stream to initial state after served one request"""
         if self._handler_event is not None:
             self._handler_event = None
-            self._looper.remove_handler(self.fileno())
+            self._reactor.remove_handler(self.fileno())
         self._read_callback = self._write_callback = None
         self._read_buffer_bytes = 0
         self._read_buffer =  self._write_buffer = None
@@ -236,9 +236,9 @@ class BaseStream(object):
         raise NotImplementedError()
 
     def _attach_read_handler(self):
-        """Attach read handler to `looper`.
+        """Attach read handler to `reactor`.
         If socket throws EWOULDBLOCK with empty `_read_buffer`,
-        `looper` should observe that socket for lazy reading.
+        `reactor` should observe that socket for lazy reading.
 
         """
         if self._handler_event is None:
@@ -359,7 +359,7 @@ class BaseStream(object):
                 self._close_callback = None
 
     def event_handler(self, fd, events):
-        """Handler which will attached to `looper`"""
+        """Handler which will attached to `reactor`"""
         try:
             if events & PollEvents.READ:
                 self._handle_read()
@@ -379,7 +379,7 @@ class BaseStream(object):
 
     def _handle_write(self):
         """Handle write process when fd is available.
-        This method will be passed to event handler of `looper`
+        This method will be passed to event handler of `reactor`
 
         """
         try:
@@ -391,7 +391,7 @@ class BaseStream(object):
 
     def _handle_read(self):
         """Handle read process when fd is available.
-        This method will be passed to event handler of `looper`
+        This method will be passed to event handler of `reactor`
 
         """
         try:
@@ -402,7 +402,7 @@ class BaseStream(object):
             self.close()
 
     def _attach_stream_handler(self, event_mask):
-        """Attach handler to `looper` for the purpose of handling
+        """Attach handler to `reactor` for the purpose of handling
         asynchronous reading and writing
 
         """
@@ -412,12 +412,12 @@ class BaseStream(object):
         if self._handler_event is None:
             # Attach new handler
             self._handler_event = event_mask | PollEvents.ERROR
-            self._looper.attach_handler(
+            self._reactor.attach_handler(
                 self.fileno(), self._handler_event, self.event_handler)
         elif not self._handler_event & event_mask:
             # Update event of existing handler
             self._handler_event |= event_mask
-            self._looper.update_handler(self.fileno(), event_mask)
+            self._reactor.update_handler(self.fileno(), event_mask)
 
 
 class SocketStream(BaseStream):

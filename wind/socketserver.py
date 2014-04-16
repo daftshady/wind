@@ -9,13 +9,11 @@
 
 
 import socket
-from wind.looper import Looper
+from wind.reactor import Reactor
 from wind.driver import PollEvents
 from wind.exceptions import \
     SocketError, ServerError, EWOULDBLOCK, ECONNRESET
 
-
-# XXX: Remove deep relation with Server and Looper
 
 class BaseServer(object):
     """Base implementation for server classes.
@@ -24,7 +22,7 @@ class BaseServer(object):
 
     Methods for the caller:
 
-    - __init__(looper=None)
+    - __init__(reactor=None)
     - bind(address, port)
     - listen(address, port)
     - attach_sockets(sockets=[])
@@ -38,12 +36,12 @@ class BaseServer(object):
     - _event_handler(conn, address)
 
     """
-    def __init__(self, looper=None):
+    def __init__(self, reactor=None):
         """Initialize BaseServer.
 
-        :param looper: Event looper.
+        :param reactor: Event reactor.
         """
-        self.looper = looper or Looper.instance()
+        self.reactor = reactor or Reactor.instance()
         self._sockets = []
 
     def bind(self, address, port):
@@ -55,22 +53,22 @@ class BaseServer(object):
 
     def listen(self, address, port):
         """Makes sockets to be bound to address in specific port
-        and attachs accept handler to event observer(`looper`)
+        and attachs accept handler to event observer(`reactor`).
 
         """
         raise NotImplementedError
 
     def attach_sockets(self, sockets=[]):
         """Attach extra sockets to tcp server instance"""
-        self._bind_to_looper(sockets=sockets)
+        self._bind_to_reactor(sockets=sockets)
 
     def run_simple(self, address, port=9000):
         """Simply run server with single-process"""
         self.listen(address, port)
-        if hasattr(self.looper, 'run'):
-            self.looper.run()
+        if hasattr(self.reactor, 'run'):
+            self.reactor.run()
         else:
-            raise ServerError('`looper` has no attribute `run`')
+            raise ServerError('`reactor` has no attribute `run`')
 
     def _create_socket(self, family, socket_type):
         try:
@@ -79,10 +77,10 @@ class BaseServer(object):
         except socket.error as e:
             raise SocketException('Socket creation failed')
 
-    def _bind_to_looper(self, sockets=[]):
-        """Bind sockets to looper.
+    def _bind_to_reactor(self, sockets=[]):
+        """Bind sockets to reactor.
         This must be called before actual run of server
-        because initialized sockets must be registered to looper.
+        because initialized sockets must be registered to reactor.
 
         @param sockets: Extra sockets to be bound on this server.
         """
@@ -105,14 +103,14 @@ class BaseServer(object):
 
                 callback(conn, address)
 
-        if hasattr(self.looper, 'attach_handler'):
-            self.looper.attach_handler(
+        if hasattr(self.reactor, 'attach_handler'):
+            self.reactor.attach_handler(
                 socket_.fileno(), PollEvents.READ, _accept_handler)
         else:
-            raise ServerError('`looper` has no attribute `attach_handler`')
+            raise ServerError('`reactor` has no attribute `attach_handler`')
 
     def _event_handler(self, conn, address):
-        """This method will be registered in event observer(`looper`)
+        """This method will be registered in event observer(`reactor`)
         with sockets already bound to address.
         When `READ` is catched by observer, this method will serve connection.
 
@@ -126,7 +124,7 @@ class TCPServer(BaseServer):
 
     Methods for the caller:
 
-    - __init__(looper=None)
+    - __init__(reactor=None)
     - bind(address, port)
     - listen(address, port)
     - attach_sockets(sockets=[])
@@ -141,11 +139,11 @@ class TCPServer(BaseServer):
     # It will consume kernel resource
     backlog_size = 128
 
-    def __init__(self, looper=None):
+    def __init__(self, reactor=None):
         """Initialize tcp server.
 
         """
-        super(TCPServer, self).__init__(looper=looper)
+        super(TCPServer, self).__init__(reactor=reactor)
 
     def bind(self, address, port):
         """Binds socket on specified address, port"""
@@ -172,9 +170,9 @@ class TCPServer(BaseServer):
         return socket_
 
     def listen(self, address, port):
-        """Binds socket and actually attach this server on looper"""
+        """Binds socket and actually attach this server on reactor"""
         self.bind(address, port)
-        self._bind_to_looper()
+        self._bind_to_reactor()
 
     def _event_handler(self, conn, address):
         raise NotImplementedError
