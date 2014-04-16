@@ -3,7 +3,7 @@
 """Tests for wind"""
 
 import unittest
-from wind.web.datastructures import FlexibleDeque, CaseInsensitiveDict
+from wind.datastructures import FlexibleDeque, CaseInsensitiveDict
 
 
 class StreamTestCase(unittest.TestCase):
