@@ -83,7 +83,7 @@ class BaseLogger(object):
 
     def set_format(self, format_, log_type):
         """Change log format of specific logger
-        :param format_: string configurated format following the form of
+        @param format_: string configurated format following the form of
         python default logging library.
         ex) '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
@@ -95,8 +95,8 @@ class BaseLogger(object):
 
     def attach_stream(self, log_type, log_level, format_=None):
         """Start printing logging output with standard stream.
-        :param log_type: logger selector.
-        :param log_level: log level for streamHandler.
+        @param log_type: logger selector.
+        @param log_level: log level for streamHandler.
         This should be `LogLevel` object.(We are wrapping log level of
         python default logging library for the consistency of usage)
         """
@@ -113,10 +113,10 @@ class BaseLogger(object):
 
     def attach_file(self, filename, format_=None, log_type=LogType.BASE):
         """Start file logging of specific logger.
-        :param filename: logging file name.
-        :param format_: file logging format. (optional)
+        @param filename: logging file name.
+        @param format_: file logging format. (optional)
         If not provided, it will use default log format of `BaseLogger`.
-        :param log_type: log type for this file. (optional)
+        @param log_type: log type for this file. (optional)
         By default, this method will attach file handler to base logger.
 
         """
@@ -131,10 +131,10 @@ class BaseLogger(object):
 
     def log(self, msg, log_type=LogType.BASE, log_level=LogLevel.INFO):
         """Log message to logger
-        :param msg: actual log message.
-        :param log_type: logger selector.
+        @param msg: actual log message.
+        @param log_type: logger selector.
         By default, base logger will be selected.
-        :param log_level: log level for this message.
+        @param log_level: log level for this message.
         If `log_level` is lower than default level in logger, message may
         silently ignored.
         This should be `LogLevel` object.(We are wrapping log level of

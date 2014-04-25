@@ -39,7 +39,7 @@ class BaseServer(object):
     def __init__(self, reactor=None):
         """Initialize BaseServer.
 
-        :param reactor: Event reactor.
+        @param reactor: Event reactor.
         """
         self.reactor = reactor or Reactor.instance()
         self._sockets = []

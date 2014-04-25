@@ -42,7 +42,7 @@ class PollReactor(object):
     def __init__(self, driver=None):
         """Event driven io loop using `poll`
 
-        :param driver: Actual unix system call implementing io multiplexing
+        @param driver: Actual unix system call implementing io multiplexing
 
         """
         super(PollReactor, self).__init__()

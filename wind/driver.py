@@ -125,7 +125,7 @@ class Select(BaseDriver):
     def poll(self, poll_timeout):
         """Returns `List` of (fd, event) pair
 
-        :param poll_timeout: Value for select timeout.(sec)
+        @param poll_timeout: Value for select timeout.(sec)
         If timeout is `0`, it specifies a poll and never blocks.
         """
         read, write, error = select.select(
@@ -204,7 +204,7 @@ class Kqueue(BaseDriver):
     def poll(self, poll_timeout):
         """Returns `List` of (fd, event) pair
 
-        :param poll_timeout: Value for select timeout.(sec)
+        @param poll_timeout: Value for select timeout.(sec)
         If timeout is `0`, it specifies a poll and never blocks.
         """
         events = Events()
