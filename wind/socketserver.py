@@ -25,7 +25,7 @@ class BaseServer(object):
     - __init__(reactor=None)
     - bind(address, port)
     - listen(address, port)
-    - attach_sockets(sockets=[])
+    - attach_sockets(sockets)
     - run_simple(address, port=9000)
 
     Methods that may be overrided:
@@ -58,8 +58,10 @@ class BaseServer(object):
         """
         raise NotImplementedError
 
-    def attach_sockets(self, sockets=[]):
+    def attach_sockets(self, sockets):
         """Attach extra sockets to tcp server instance"""
+        if not isinstance(sockets, list):
+            raise SocketException('`attach_sockets` can only accept `list`')
         self._bind_to_reactor(sockets=sockets)
 
     def run_simple(self, address, port=9000):
@@ -77,15 +79,18 @@ class BaseServer(object):
         except socket.error as e:
             raise SocketException('Socket creation failed')
 
-    def _bind_to_reactor(self, sockets=[]):
+    def _bind_to_reactor(self, sockets=None):
         """Bind sockets to reactor.
         This must be called before actual run of server
         because initialized sockets must be registered to reactor.
 
-        @param sockets: Extra sockets to be bound on this server.
+        @param sockets: Extra `list` of sockets to be bound on this server.
+        Note that if `sockets` is not None, this method attaches handler to
+        objects in `sockets` only.
         """
-        self._sockets.extend(sockets)
-        for socket_ in self._sockets:
+        if sockets is not None:
+            self._sockets.extend(sockets)
+        for socket_ in self._sockets if sockets is None else sockets:
             self._attach_accept_handler(socket_, self._event_handler)
 
     def _attach_accept_handler(self, socket_, callback):
@@ -127,7 +132,7 @@ class TCPServer(BaseServer):
     - __init__(reactor=None)
     - bind(address, port)
     - listen(address, port)
-    - attach_sockets(sockets=[])
+    - attach_sockets(sockets)
     - run_simple(address, port=9000)
 
     Methods that should be overrided
