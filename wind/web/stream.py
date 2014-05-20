@@ -300,7 +300,7 @@ class BaseStream(object):
 
         if chunk:
             for i in range(0, len(chunk), self._write_chunk_size):
-                self._write_buffer.append(chunk[0:i + self._write_chunk_size])
+                self._write_buffer.append(chunk[i:i + self._write_chunk_size])
 
     def _write_to_fd(self, chunk):
         raise NotImplementedError()
