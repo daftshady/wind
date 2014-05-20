@@ -266,12 +266,7 @@ class Resource(object):
             self._generate_response()
         self.write(self._response.raw(), left=True)
         self._write_buffer.gather(self._write_buffer_bytes)
-        self._conn.stream.write(self._write_buffer.popleft(), None)
-        self._conn.close()
-
-        self._log_access()
-        self._processing = False
-        self._clear()
+        self._conn.stream.write(self._write_buffer.popleft(), self._clear)
 
     def _generate_response(self, status_code=HTTPStatusCode.OK):
         # Generate response headers
@@ -284,6 +279,9 @@ class Resource(object):
             status_code=status_code)
 
     def _clear(self):
+        self._conn.close()
+        self._log_access()
+        self._processing = False
         self._conn = self._request = None
         self._write_buffer = FlexibleDeque()
         self._write_buffer_bytes = 0

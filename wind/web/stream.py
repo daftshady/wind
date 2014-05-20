@@ -241,23 +241,27 @@ class BaseStream(object):
         `reactor` should observe that socket for lazy reading.
 
         """
-        if self._handler_event is None:
-            self._attach_stream_handler(PollEvents.READ)
+        self._attach_stream_handler(PollEvents.READ)
 
     def write(self, chunk, callback):
         if not isinstance(chunk, basestring):
             raise StreamError('Can write only chunk of `bytes`')
 
         self._add_callback(callback, read=False)
-        self._process_write(chunk)
+        self._process_write(chunk=chunk)
 
-    def _process_write(self, chunk, partial=False):
+    def _process_write(self, chunk=None):
+        """Write chunk to socket.
+        This method doesn't save written chunk on memory for performance.
+        NOTE that if self._write_callback is provided, it will be executed
+        even if exception ECONNRESET happens.
+
+        """
         self._raise_if_closed()
-
+        partial = chunk is None
         if not partial:
             self._to_write_buffer(chunk)
 
-        written = None
         while self._write_buffer:
             try:
                 num_bytes = self._write_to_fd(self._write_buffer[0])
@@ -268,12 +272,14 @@ class BaseStream(object):
 
                 # Partial writing is handled here.
                 self._write_buffer.gather(num_bytes)
-                written = self._write_buffer.popleft()
+                self._write_buffer.popleft()
             except socket.error as e:
                 if e.args[0] in EWOULDBLOCK:
                     # Freeze
                     self._write_buffer.frozen = True
                 elif e.args[0] in ECONNRESET:
+                    # Callback runs here.
+                    self._run_callback(self._pop_callback(read=False))
                     self.close()
                 else:
                     raise StreamError(e)
@@ -282,9 +288,9 @@ class BaseStream(object):
         # Post write process.
         if self._write_buffer and not partial:
             # Writing is not completed at one go
-            self._attach_stream_handler(PollEvents.WRITE)
+            self._attach_write_handler()
         elif not self._write_buffer:
-            self._run_callback(self._pop_callback(read=False), written)
+            self._run_callback(self._pop_callback(read=False))
 
     def _to_write_buffer(self, chunk):
         """Fill `_write_buffer` after dividing `chunk` with
@@ -298,6 +304,14 @@ class BaseStream(object):
 
     def _write_to_fd(self, chunk):
         raise NotImplementedError()
+
+    def _attach_write_handler(self):
+        """Attach write handler to `reactor`.
+        When writing a long chunk that can't be sent at one go,
+        `reactor` should observe that socket for lazy writing.
+
+        """
+        self._attach_stream_handler(PollEvents.WRITE)
 
     def _raise_if_closed(self):
         if self.closed:
@@ -411,7 +425,7 @@ class BaseStream(object):
 
         if self._handler_event is None:
             # Attach new handler
-            self._handler_event = event_mask | PollEvents.ERROR
+            self._handler_event = event_mask
             self._reactor.attach_handler(
                 self.fileno(), self._handler_event, self.event_handler)
         elif not self._handler_event & event_mask:
