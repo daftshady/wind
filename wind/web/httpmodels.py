@@ -388,7 +388,7 @@ class HTTPHandler(object):
             raise e
 
     def _handle_request(self):
-         if self._app is not None:
+        if self._app is not None:
             self._app.react(self._conn, self._request)
 
     def __repr__(self):
