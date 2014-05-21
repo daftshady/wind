@@ -100,7 +100,7 @@ class FlexibleDict(collections.MutableMapping):
     def __delitem__(self, key):
         del self._store[self._transform(key)]
 
-    def __len__(self, key):
+    def __len__(self):
         return len(self._store)
 
     def __repr__(self):
