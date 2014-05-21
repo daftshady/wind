@@ -22,9 +22,7 @@ Usage sketch.
         server = HTTPServer(app=app)
         server.run_simple('127.0.0.1', 9000)
 
-This usage interfaces are made for the purpose of testing performance. (not frozen at all)
-
-So, it may be fully revised.
+This usage interfaces are made for the purpose of testing performance.
 
 
 Note
