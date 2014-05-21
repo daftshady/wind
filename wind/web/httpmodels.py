@@ -18,6 +18,7 @@ class HTTPStatusCode():
     """Class for HTTP status code enum"""
     # Public access fields.
     OK = '200'
+    NOT_MODIFIED = '304'
     BAD_REQUEST = '400'
     FORBIDDEN = '403'
     NOT_FOUND = '404'
@@ -49,8 +50,8 @@ class HTTPRequestContentType():
 
 
 class HTTPHeader(object):
-    def __init__(self, dict_={}):
-        self._headers = CaseInsensitiveDict(dict_)
+    def __init__(self, dict_=None):
+        self._headers = CaseInsensitiveDict(dict_ or {})
 
     def add_content_length(self, value):
         self.add('Content-Length', value)
@@ -90,10 +91,19 @@ class HTTPHeader(object):
         return '<HTTPHeader [%s]>' % (self._headers)
 
 
+class HTTPRequestHeader(HTTPHeader):
+    @property
+    def if_none_match(self):
+        return self._headers.get('If-None-Match', '')
+
+
 class HTTPResponseHeader(HTTPHeader):
-    def __init__(self, dict_={}):
+    def __init__(self, dict_=None):
         self._headers = self.default()
-        self._headers.update(dict_)
+        self._headers.update(dict_ or {})
+
+    def add_etag(self, etag):
+        self.add('Etag', etag)
 
     def default(self):
         return CaseInsensitiveDict({
@@ -107,14 +117,14 @@ class HTTPResponseHeader(HTTPHeader):
 
 class HTTPRequest(object):
     """HTTP Request object"""
-    def __init__(self, url=None, method=None, headers={},
-        params={}, body=None, auth=None, cookies=None, version=None):
+    def __init__(self, url=None, method=None, headers=None,
+        params=None, body=None, auth=None, cookies=None, version=None):
 
         self.url = url
         if isinstance(method, basestring):
             self.method = method.lower()
-        self.headers = headers
-        self.params = params
+        self.headers = headers or {}
+        self.params = params or {}
         self.body = body
         self.auth = auth
         self.cookies = cookies
@@ -130,13 +140,13 @@ class HTTPRequest(object):
 
 class HTTPResponse(object):
     """HTTP Response object"""
-    def __init__(self, request=None, reply=None, headers={},
+    def __init__(self, request=None, reply=None, headers=None,
         cookies=None, status_code=None):
 
         self.request = request
         self.reply = reply
         self.headers = HTTPResponseHeader()
-        self.headers.update(headers)
+        self.headers.update(headers or {})
         self.cookies = cookies
         self.status_code = status_code
         if self.status_code is not None:
@@ -158,6 +168,8 @@ class HTTPResponse(object):
         code = HTTPStatusCode
         if status_code == code.OK:
             return reply([version, code.OK, 'OK'])
+        elif status_code == code.NOT_MODIFIED:
+            return reply([version, code.NOT_MODIFIED, 'Not Modified'])
         elif status_code == code.BAD_REQUEST:
             return reply([version, code.BAD_REQUEST, 'Bad Request'])
         elif status_code == code.FORBIDDEN:
@@ -251,7 +263,7 @@ class HTTPHandler(object):
     def _parse_header(self, chunk):
         try:
             if not chunk:
-                # XXX: Grap this exception.
+                # XXX: Grab this exception.
                 return
 
             # Parse first chunk of request
@@ -262,7 +274,7 @@ class HTTPHandler(object):
             # Generate Headers Dict.
             raw_headers = raw_headers.split(separator)
             raw_headers = filter(lambda x:x, raw_headers)
-            headers = HTTPHeader(
+            headers = HTTPRequestHeader(
                 dict(to_str(raw.split(b': ', 1)) for raw in raw_headers))
 
             # Generate `HTTPRequest`

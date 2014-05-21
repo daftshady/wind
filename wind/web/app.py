@@ -9,8 +9,9 @@
 
 import json
 import types
+import hashlib
 import traceback
-from wind.web.codec import encode
+from wind.web.codec import encode, to_str
 from wind.log import wind_logger, LogType
 from wind.compat import urlparse, parse_qsl
 from wind.web.httpmodels import (
@@ -211,82 +212,6 @@ class Resource(object):
         """Constructor hook"""
         pass
 
-    def inject(self, method=None):
-        if hasattr(method, '__call__') and path is not None:
-            self._synchronous_handler = method
-
-    def react(self, conn, request):
-        self._processing = True
-        self._conn = conn
-        self._request = request
-
-        try:
-            if not self._path.allowed(request.method) \
-                and not self._path.error_path:
-                self._raise_not_allowed()
-
-            if self._synchronous_handler is not None:
-                # Simply run synchronous handler for test!
-                chunk = self._synchronous_handler(request)
-                self.write(chunk)
-                self.finish()
-            else:
-                # Execute request handler
-                getattr(self, 'handle_' + request.method)()
-                if not self._asynchronous:
-                    self.finish()
-        except HTTPError as e:
-            http_errors = \
-                [HTTPStatusCode.NOT_FOUND, HTTPStatusCode.METHOD_NOT_ALLOWED]
-            if e.args[0] in http_errors:
-                self._generate_response(status_code=e.args[0])
-                self.finish()
-        except Exception as e:
-            wind_logger.log(traceback.format_exc(), LogType.ACCESS)
-            self._generate_response(
-                status_code=HTTPStatusCode.INTERNAL_SERVER_ERROR)
-            self.finish()
-
-    def write(self, chunk, left=False):
-        if isinstance(chunk, dict):
-            chunk = json.dumps(chunk)
-            self._response_header.to_json_content()
-
-        if chunk:
-            chunk = encode(chunk)
-            if left:
-                self._write_buffer.appendleft(chunk)
-            else:
-                self._write_buffer.append(chunk)
-            self._write_buffer_bytes += len(chunk)
-
-    def finish(self):
-        """Finish this resource connection by sending response"""
-        if self._response is None:
-            self._generate_response()
-        self.write(self._response.raw(), left=True)
-        self._write_buffer.gather(self._write_buffer_bytes)
-        self._conn.stream.write(self._write_buffer.popleft(), self._clear)
-
-    def _generate_response(self, status_code=HTTPStatusCode.OK):
-        # Generate response headers
-        if self._write_buffer:
-            self._response_header. \
-                add_content_length(self._write_buffer_bytes)
-
-        self._response = HTTPResponse(
-            request=self._request, headers=self._response_header.to_dict(),
-            status_code=status_code)
-
-    def _clear(self):
-        self._conn.close()
-        self._log_access()
-        self._processing = False
-        self._conn = self._request = None
-        self._write_buffer = FlexibleDeque()
-        self._write_buffer_bytes = 0
-        self._response_header.clear()
-
     def handle_get(self):
         self._raise_not_allowed()
 
@@ -305,10 +230,145 @@ class Resource(object):
     def _raise_not_allowed(self):
         raise HTTPError(HTTPStatusCode.METHOD_NOT_ALLOWED)
 
+    def inject(self, method=None):
+        if hasattr(method, '__call__') and path is not None:
+            self._synchronous_handler = method
+
+    def react(self, conn, request):
+        self._processing = True
+        self._conn = conn
+        self._request = request
+
+        try:
+            if not self._path.allowed(request.method) \
+                and not self._path.error_path:
+                self._raise_not_allowed()
+
+            if self._synchronous_handler is not None:
+                # Simply run synchronous handler for test!
+                # NOTE that there's no etag support to this kind of handler.
+                chunk = self._synchronous_handler(request)
+                self.write(chunk)
+                self.finish()
+            else:
+                # Execute request handler
+                getattr(self, 'handle_' + request.method)()
+                if not self._asynchronous:
+                    self.finish()
+        except HTTPError as e:
+            http_errors = \
+                [HTTPStatusCode.NOT_FOUND, HTTPStatusCode.METHOD_NOT_ALLOWED,
+                HTTPStatusCode.NOT_MODIFIED]
+            if e.args[0] in http_errors:
+                self.send_response(status_code=e.args[0])
+            else:
+                # XXX: Grab this.
+                pass
+        except Exception as e:
+            wind_logger.log(traceback.format_exc(), LogType.ACCESS)
+            self.send_response(
+                status_code=HTTPStatusCode.INTERNAL_SERVER_ERROR)
+
+    def write(self, chunk, left=False):
+        if isinstance(chunk, dict):
+            chunk = json.dumps(chunk)
+            self._response_header.to_json_content()
+
+        if chunk:
+            chunk = encode(chunk)
+            if left:
+                self._write_buffer.appendleft(chunk)
+            else:
+                self._write_buffer.append(chunk)
+            self._write_buffer_bytes += len(chunk)
+
+    def add_response_header(self, key, value):
+        self._response_header.add(key, value)
+
+    def remove_response_header(self, key):
+        self._response_header.remove(key)
+
+    def finish(self):
+        """This method finishes current connection by sending response
+        with written chunk in self._write_buffer.
+
+        """
+        if self._etag_available():
+            etag = self._generate_etag()
+            request_etag = self._get_etag()
+            if request_etag == etag:
+                raise HTTPError(HTTPStatusCode.NOT_MODIFIED)
+            else:
+                self._set_etag(etag)
+
+        if self._response is None:
+            self._generate_response()
+        self.write(self._response.raw(), left=True)
+        self._write_buffer.gather(self._write_buffer_bytes)
+        self._conn.stream.write(self._write_buffer.popleft(), self._clear)
+
+    def send_response(self, status_code=HTTPStatusCode.OK):
+        """This method finishes current connection by sending response.
+        NOTE that it will write only response headers regardless of chunks
+        in self._write_buffer.
+
+        """
+        if self._response is None:
+            self._generate_response(status_code=status_code)
+        self._conn.stream.write(encode(self._response.raw()), self._clear)
+
+    def _generate_response(self, status_code=HTTPStatusCode.OK):
+        # Generate response headers
+        if self._write_buffer:
+            self._response_header. \
+                add_content_length(self._write_buffer_bytes)
+        self._response = HTTPResponse(
+            request=self._request, headers=self._response_header.to_dict(),
+            status_code=status_code)
+
+    def _clear(self):
+        self._conn.close()
+        self._log_access()
+        self._processing = False
+        self._conn = self._request = None
+        self._write_buffer = FlexibleDeque()
+        self._write_buffer_bytes = 0
+        self._response_header.clear()
+
     def _log_access(self):
         if self._request is not None and self._response is not None:
             msg = '%s %s %s' % \
                 (self._request.method.upper(), self._request.url,
                     self._response.status_code)
             wind_logger.log(msg, LogType.ACCESS)
+
+    def _get_etag(self):
+        """Get `Etag` from `If-None-Match` in HTTP request headers"""
+        return self._request.headers.if_none_match
+
+    def _set_etag(self, etag):
+        """Add `Etag` header to response header"""
+        self._response_header.add_etag(etag)
+
+    def _generate_etag(self):
+        """Generate etag value for chunk in self._write_buffer.
+        This method use md5 hashing to generate etag.
+        The MD5 hash assures that the actual etag is only 32 characters long,
+        while assuring that they are highly unlikely to collide.
+
+        """
+        md5 = hashlib.md5()
+        for chunk in self._write_buffer:
+            md5.update(chunk)
+        return to_str(md5.hexdigest())
+
+    def _etag_available(self):
+        """Checks if `Etag` can be used. This method is needed because
+        there is no `Etag` in HTTP 1.0 (RFC 1945).
+        This method can be overrided to disable `Etag` cache validation.
+        If this method always returns `False`, this handler don't use
+        `Etag` any more.
+
+        """
+        return float(self._request.version[-3:]) > 1.0
 
