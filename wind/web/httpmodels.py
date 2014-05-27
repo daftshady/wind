@@ -7,6 +7,7 @@
 
 """
 
+from wind import __version__
 from wind.web.stream import SocketStream
 from wind.exceptions import WindException
 from wind.datastructures import CaseInsensitiveDict
@@ -108,7 +109,7 @@ class HTTPResponseHeader(HTTPHeader):
     def default(self):
         return CaseInsensitiveDict({
             'Content-Type' : 'text/html; charset=UTF-8',
-            'Server' : 'Wind framework'
+            'Server' : 'wind ' + __version__
             })
 
     def to_json_content(self):
