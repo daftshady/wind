@@ -171,17 +171,18 @@ class Path(object):
 
 
 class Resource(object):
-    """Class for web resource.
+    """Class for HTTP web resource.
     May inherit this class to implement `comet` or asynchronously
     handle HTTP request.
-    This class may be fully revised later in the level that does
-    not break overall apis.
 
     Methods for the caller:
 
     - __init__(path=None)
     - react(conn, request)
     - inject(method=None)
+    - add_response_header(key, value)
+    - remove_response_header(key)
+    - send_response(status_code=HTTPStatusCode.OK)
     - write(chunk, left=False)
     - finish()
 
@@ -201,6 +202,7 @@ class Resource(object):
         self._conn = None
         self._request = None
         self._response = None
+        self._status_code = None
         self._processing = False
         self._write_buffer = FlexibleDeque()
         self._write_buffer_bytes = 0
@@ -288,6 +290,13 @@ class Resource(object):
     def remove_response_header(self, key):
         self._response_header.remove(key)
 
+    def set_status_code(self, status_code):
+        """Set HTTP response status code.
+        @param status_code: status code string (see httpmodels.HTTPStatusCode)
+
+        """
+        self._status_code = status_code
+
     def finish(self):
         """This method finishes current connection by sending response
         with written chunk in self._write_buffer.
@@ -301,8 +310,12 @@ class Resource(object):
             else:
                 self._set_etag(etag)
 
-        if self._response is None:
-            self._generate_response()
+        if self._write_buffer:
+            self._response_header. \
+                add_content_length(self._write_buffer_bytes)
+
+        self.set_status_code(HTTPStatusCode.OK)
+        self._generate_response()
         self.write(self._response.raw(), left=True)
         self._write_buffer.gather(self._write_buffer_bytes)
         self._conn.stream.write(self._write_buffer.popleft(), self._clear)
@@ -313,18 +326,20 @@ class Resource(object):
         in self._write_buffer.
 
         """
-        if self._response is None:
-            self._generate_response(status_code=status_code)
+        self.set_status_code(status_code)
+        self._generate_response()
         self._conn.stream.write(encode(self._response.raw()), self._clear)
 
-    def _generate_response(self, status_code=HTTPStatusCode.OK):
-        # Generate response headers
-        if self._write_buffer:
-            self._response_header. \
-                add_content_length(self._write_buffer_bytes)
+    def _generate_response(self):
+        """Generate response header.
+        Calling this method publically is not recommended.
+        NOTE that if response_header has changed after this method is called,
+        you should call this method again to generate response.
+
+        """
         self._response = HTTPResponse(
             request=self._request, headers=self._response_header.to_dict(),
-            status_code=status_code)
+            status_code=self._status_code)
 
     def _clear(self):
         self._conn.close()
