@@ -194,6 +194,7 @@ class Resource(object):
     - handle_put(request)
     - handle_delete(request)
     - handle_head(request)
+    - _error_message()
 
     """
     def __init__(self, path=None):
@@ -321,14 +322,26 @@ class Resource(object):
         self._conn.stream.write(self._write_buffer.popleft(), self._clear)
 
     def send_response(self, status_code=HTTPStatusCode.OK):
-        """This method finishes current connection by sending response.
+        """This method finishes current connection by sending response which
+        is typically error.
         NOTE that it will write only response headers regardless of chunks
         in self._write_buffer.
 
         """
+        self._flush_buffer()
         self.set_status_code(status_code)
+        self.write(self._error_message())
         self._generate_response()
-        self._conn.stream.write(encode(self._response.raw()), self._clear)
+        self.write(self._response.raw(), left=True)
+        self._write_buffer.gather(self._write_buffer_bytes)
+        self._conn.stream.write(self._write_buffer.popleft(), self._clear)
+
+    def _error_message(self):
+        """This method can be overrided to make custom error message
+        By default, this method returns status_code as string.
+
+        """
+        return self._status_code
 
     def _generate_response(self):
         """Generate response header.
@@ -346,9 +359,12 @@ class Resource(object):
         self._log_access()
         self._processing = False
         self._conn = self._request = None
+        self._flush_buffer()
+        self._response_header.clear()
+
+    def _flush_buffer(self):
         self._write_buffer = FlexibleDeque()
         self._write_buffer_bytes = 0
-        self._response_header.clear()
 
     def _log_access(self):
         if self._request is not None and self._response is not None:
