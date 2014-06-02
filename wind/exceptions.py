@@ -63,3 +63,8 @@ class LoggerError(WindException):
 class CodecError(WindException):
     """Codec error occured"""
     pass
+
+
+class ConcurrencyError(WindException):
+    """Concurrency error eccured"""
+    pass
