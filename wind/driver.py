@@ -8,7 +8,6 @@
 """
 
 import select
-import collections
 from itertools import chain
 from wind.exceptions import PollError, WindException
 
@@ -24,9 +23,9 @@ def pick():
         candidates = ['select', 'poll', 'epoll', 'kqueue']
         # Cast result of `filter` because `filter` no longer returns
         # `list` in Python 3.x
-        driver = list(filter(lambda x : hasattr(select, x), candidates))[-1]
+        driver = list(filter(lambda x: hasattr(select, x), candidates))[-1]
         return eval(driver.title())().instance
-    except (IndexError, NameError) as e:
+    except (IndexError, NameError):
         raise WindException('No available event driver')
 
 
@@ -221,7 +220,7 @@ class Kqueue(BaseDriver):
                     events.add(fd, PollEvents.WRITE)
 
             if event.flags == select.KQ_EV_ERROR:
-                events[fd] = evetns.get(fd, 0) | PollEvents.ERROR
+                events[fd] = events.get(fd, 0) | PollEvents.ERROR
 
         return events.items()
 
@@ -245,4 +244,3 @@ class Kevent(object):
     def write_events(self, fd, flags):
         return select.kevent(
             fd, filter=select.KQ_FILTER_WRITE, flags=flags)
-
