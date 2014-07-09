@@ -12,8 +12,8 @@ import socket
 import select
 import threading
 
-from wind.driver import pick, Select, PollEvents
-from wind.exceptions import ReactorError, EWOULDBLOCK
+from wind.exceptions import EWOULDBLOCK
+from wind.driver import pick, PollEvents
 
 
 class PollReactor(object):
@@ -123,7 +123,7 @@ class PollReactor(object):
         for callback in self._callbacks:
             try:
                 callback()
-            except Exception as e:
+            except Exception:
                 # TODO: Log exception.
                 # We are eatting error!
                 pass
@@ -197,7 +197,7 @@ class Heartbeat(object):
 
     @property
     def read_handler(self):
-        return lambda fd, event_mask : self.end()
+        return lambda fd, event_mask: self.end()
 
     def _setup(self):
         """Setup instant server for one byte communication.
@@ -216,7 +216,7 @@ class Heartbeat(object):
             self._writer.setblocking(0)
             self._reader.setblocking(0)
             # Close instant socket because we don't need it anymore.
-        except Exception as e:
+        except Exception:
             pass
 
     def begin(self):

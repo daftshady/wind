@@ -104,7 +104,7 @@ class BaseStream(object):
             self._reactor.remove_handler(self.fileno())
         self._read_callback = self._write_callback = None
         self._read_buffer_bytes = 0
-        self._read_buffer =  self._write_buffer = None
+        self._read_buffer = self._write_buffer = None
 
     def _close_fd(self):
         raise NotImplementedError
@@ -174,7 +174,7 @@ class BaseStream(object):
             chunk = self._read_from_fd()
             if not chunk or chunk is None:
                 return 0
-        except socket.error as e:
+        except socket.error:
             self.close()
             return
 
@@ -224,7 +224,6 @@ class BaseStream(object):
                     len(self._read_buffer[0] + self._read_buffer[1]))
         else:
             return -1
-
 
     def _pop_chunk(self, read_bytes):
         """Pop chunk from `_read_buffer` and Returns chunk."""
@@ -359,7 +358,7 @@ class BaseStream(object):
         try:
             if callback is not None:
                 callback(*args)
-        except Exception as e:
+        except Exception:
             self.close()
             # We don't wrap exception here because we don't know
             # what caused exception at all.
@@ -489,4 +488,3 @@ class FileStream(BaseStream):
     def _close_fd(self):
         self.file_.close()
         self.file_ = None
-

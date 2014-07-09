@@ -108,8 +108,8 @@ class HTTPResponseHeader(HTTPHeader):
 
     def default(self):
         return CaseInsensitiveDict({
-            'Content-Type' : 'text/html; charset=UTF-8',
-            'Server' : 'wind ' + __version__
+            'Content-Type': 'text/html; charset=UTF-8',
+            'Server': 'wind ' + __version__
             })
 
     def to_json_content(self):
@@ -118,8 +118,9 @@ class HTTPResponseHeader(HTTPHeader):
 
 class HTTPRequest(object):
     """HTTP Request object"""
-    def __init__(self, url=None, method=None, headers=None,
-        params=None, body=None, auth=None, cookies=None, version=None):
+    def __init__(
+            self, url=None, method=None, headers=None,
+            params=None, body=None, auth=None, cookies=None, version=None):
 
         self.url = url
         if isinstance(method, basestring):
@@ -141,8 +142,9 @@ class HTTPRequest(object):
 
 class HTTPResponse(object):
     """HTTP Response object"""
-    def __init__(self, request=None, reply=None, headers=None,
-        cookies=None, status_code=None):
+    def __init__(
+            self, request=None, reply=None, headers=None,
+            cookies=None, status_code=None):
 
         self.request = request
         self.reply = reply
@@ -164,6 +166,7 @@ class HTTPResponse(object):
 
     def _generate_reply(self, status_code):
         version = self.request.version
+
         def reply(list_):
             return ' '.join(list_)
         code = HTTPStatusCode
@@ -274,7 +277,7 @@ class HTTPHandler(object):
 
             # Generate Headers Dict.
             raw_headers = raw_headers.split(separator)
-            raw_headers = filter(lambda x:x, raw_headers)
+            raw_headers = filter(lambda x: x, raw_headers)
             headers = HTTPRequestHeader(
                 dict(to_str(raw.split(b': ', 1)) for raw in raw_headers))
 
@@ -333,10 +336,10 @@ class HTTPHandler(object):
 
     def _parse_post_params(self, request):
         if request.headers. \
-            content_type.startswith(HTTPRequestContentType.DEFAULT):
+                content_type.startswith(HTTPRequestContentType.DEFAULT):
             return decode_dict(dict(parse_qsl(request.body)))
         elif request.headers. \
-            content_type.startswith(HTTPRequestContentType.MULTIPART):
+                content_type.startswith(HTTPRequestContentType.MULTIPART):
             params = {}
             self._parse_multipart(
                 request.headers.content_type, request.body, params=params)
@@ -372,6 +375,7 @@ class HTTPHandler(object):
                         elements.extend(elem.split(b'\r\n'))
 
                 content_params = CaseInsensitiveDict()
+
                 def inject_param(raw, separator):
                     pairs = raw.split(separator)
                     # Remove unnecessary quote in param string.
@@ -406,5 +410,3 @@ class HTTPHandler(object):
 
     def __repr__(self):
         return '<HTTPHandler [%s]' % (self._conn.address[0])
-
-

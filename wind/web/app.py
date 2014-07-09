@@ -13,12 +13,11 @@ import hashlib
 import traceback
 from wind.web.codec import encode, to_str
 from wind.log import wind_logger, LogType
-from wind.compat import urlparse, parse_qsl
 from wind.web.httpmodels import (
     HTTPRequest, HTTPResponse, HTTPMethod,
     HTTPStatusCode, HTTPResponseHeader)
+from wind.datastructures import FlexibleDeque
 from wind.exceptions import ApplicationError, HTTPError
-from wind.datastructures import FlexibleDeque, CaseInsensitiveDict
 
 
 def path(handler, route='', methods=[]):
@@ -82,7 +81,7 @@ class PathDispatcher(object):
         try:
             self._paths = []
             self._paths.extend(urls)
-        except (ValueError, TypeError) as e:
+        except (ValueError, TypeError):
             raise ApplicationError(
                 'Form should be `List` of `(handler, route, method)` `Tuple`.')
 
@@ -96,8 +95,8 @@ class Path(object):
     """Contains information needed for handling HTTP request."""
 
     def __init__(
-        self, handler, route=None, methods=[],
-        error_path=False, **kwargs):
+            self, handler, route=None,
+            methods=[], error_path=False, **kwargs):
         """Initialize path.
         @param handler:
             Method or Class inherits from `Resource`.
@@ -147,7 +146,7 @@ class Path(object):
             self._handler.react(conn, request)
 
     def _validate_method(self, method):
-        if not method in HTTPMethod.all():
+        if method not in HTTPMethod.all():
             raise ApplicationError("Unsupported HTTP method '%s'" % method)
         return method
 
@@ -244,7 +243,7 @@ class Resource(object):
 
         try:
             if not self._path.allowed(request.method) \
-                and not self._path.error_path:
+                    and not self._path.error_path:
                 self._raise_not_allowed()
 
             if self._synchronous_handler is not None:
@@ -260,8 +259,11 @@ class Resource(object):
                     self.finish()
         except HTTPError as e:
             http_errors = \
-                [HTTPStatusCode.NOT_FOUND, HTTPStatusCode.METHOD_NOT_ALLOWED,
-                HTTPStatusCode.NOT_MODIFIED]
+                [
+                    HTTPStatusCode.NOT_FOUND,
+                    HTTPStatusCode.METHOD_NOT_ALLOWED,
+                    HTTPStatusCode.NOT_MODIFIED
+                ]
             if e.args[0] in http_errors:
                 self.send_response(status_code=e.args[0])
             else:
@@ -402,4 +404,3 @@ class Resource(object):
 
         """
         return float(self._request.version[-3:]) > 1.0
-

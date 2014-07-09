@@ -11,8 +11,7 @@
 import socket
 from wind.reactor import Reactor
 from wind.driver import PollEvents
-from wind.exceptions import \
-    SocketError, ServerError, EWOULDBLOCK, ECONNRESET
+from wind.exceptions import ServerError, SocketError, EWOULDBLOCK
 
 
 class BaseServer(object):
@@ -61,7 +60,7 @@ class BaseServer(object):
     def attach_sockets(self, sockets):
         """Attach extra sockets to tcp server instance"""
         if not isinstance(sockets, list):
-            raise SocketException('`attach_sockets` can only accept `list`')
+            raise SocketError('`attach_sockets` can only accept `list`')
         self._bind_to_reactor(sockets=sockets)
 
     def run_simple(self, address, port=9000):
@@ -76,8 +75,8 @@ class BaseServer(object):
         try:
             socket_ = socket.socket(family, socket_type)
             return socket_
-        except socket.error as e:
-            raise SocketException('Socket creation failed')
+        except socket.error:
+            raise SocketError('Socket creation failed')
 
     def _bind_to_reactor(self, sockets=None):
         """Bind sockets to reactor.
@@ -186,4 +185,3 @@ class TCPServer(BaseServer):
 class UDPServer(BaseServer):
     # TODO : Planned to be implemented later.
     pass
-
