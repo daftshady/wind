@@ -71,7 +71,7 @@ class BaseLogger(object):
     # Public accessor declarations.
     @property
     def base(self):
-        return self_base_logger
+        return self.base_logger
 
     @property
     def access(self):
