@@ -45,7 +45,6 @@ class PollReactor(object):
         @param driver: Actual unix system call implementing io multiplexing
 
         """
-        super(PollReactor, self).__init__()
         self._running = False
         self._handlers = {}
         self._events = {}
