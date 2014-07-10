@@ -67,15 +67,19 @@ class PollReactor(object):
             self._heartbeat.read_handler)
 
     @staticmethod
+    def exist():
+        return hasattr(PollReactor, '_instance')
+
+    @staticmethod
     def instance():
         """Initialize singleton instance of Reactor
         with double-checked locking
 
         Returns singleton reactor in `main thread`
         """
-        if not hasattr(PollReactor, '_instance'):
+        if not PollReactor.exist():
             with PollReactor._singleton_lock:
-                if not hasattr(PollReactor, '_instance'):
+                if not PollReactor.exist():
                     # Choose suitable driver here.
                     PollReactor._instance = PollReactor(driver=pick())
         return PollReactor._instance

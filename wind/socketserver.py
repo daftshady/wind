@@ -11,6 +11,7 @@
 import socket
 from wind.reactor import Reactor
 from wind.driver import PollEvents
+from wind.concurrency import start_workers
 from wind.exceptions import ServerError, SocketError, EWOULDBLOCK
 
 
@@ -40,7 +41,7 @@ class BaseServer(object):
 
         @param reactor: Event reactor.
         """
-        self.reactor = reactor or Reactor.instance()
+        self.reactor = reactor
         self._sockets = []
 
     def bind(self, address, port):
@@ -63,13 +64,37 @@ class BaseServer(object):
             raise SocketError('`attach_sockets` can only accept `list`')
         self._bind_to_reactor(sockets=sockets)
 
+    def run(self, address, port, num_workers=None):
+        """This method can start tcp server with multi-process features.
+        By default, if `num_workers` is None, N(number of cpu cores) processes
+        will be spawned from this method.
+        NOTE that this method starts N independent `Reactor`.
+        If you already started `Reactor` from main process and attached sockets
+        to it, whole server system will be broken if you spawn processes after
+        that. Because each child process should have its own `Reactor` instance
+        by calling `instance` method in reactor.
+
+        @param num_workers(optional):
+            If None, this method will start automatically detected number of
+            processes. (which may be number of cpu cores).
+
+        """
+        if Reactor.exist():
+            raise ServerError('`Reactor` is already started on main process.')
+
+        self.bind(address, port)
+
+        start_workers(num_workers=num_workers)
+
+        self.reactor = Reactor.instance()
+        self._bind_to_reactor()
+        self.reactor.run()
+
     def run_simple(self, address, port=9000):
         """Simply run server with single-process"""
+        self.reactor = Reactor.instance()
         self.listen(address, port)
-        if hasattr(self.reactor, 'run'):
-            self.reactor.run()
-        else:
-            raise ServerError('`reactor` has no attribute `run`')
+        self.reactor.run()
 
     def _create_socket(self, family, socket_type):
         try:
@@ -83,9 +108,11 @@ class BaseServer(object):
         This must be called before actual run of server
         because initialized sockets must be registered to reactor.
 
-        @param sockets: Extra `list` of sockets to be bound on this server.
-        Note that if `sockets` is not None, this method attaches handler to
-        objects in `sockets` only.
+        @param sockets:
+            Extra `list` of sockets to be bound on this server.
+            Note that if `sockets` is not None, this method attaches handler to
+            objects in `sockets` only.
+
         """
         if sockets is not None:
             self._sockets.extend(sockets)
