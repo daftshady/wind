@@ -36,7 +36,7 @@ def to_str(bytes_):
     and returns bytes decoded object.
 
     """
-    if not is_py3:
+    if not is_py3 or isinstance(bytes_, str):
         return bytes_
 
     if isinstance(bytes_, (tuple, list)):
