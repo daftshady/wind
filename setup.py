@@ -1,9 +1,6 @@
 #!usr/bin/env python
 # -*- coding:utf-8 -*-
 
-import os
-import sys
-
 try:
     from setuptools import setup
 except ImportError:
@@ -28,4 +25,3 @@ setup(
     description='Web framework based on async networking server',
     install_requires=requires
 )
-
