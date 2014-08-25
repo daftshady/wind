@@ -1,7 +1,7 @@
 """
 
-    wind.web.stream
-    ~~~~~~~~~~~~~~~
+    wind.stream
+    ~~~~~~~~~~~
 
     Provides models for handling socket io stream.
 

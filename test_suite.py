@@ -7,7 +7,7 @@ from wind.datastructures import FlexibleDeque, CaseInsensitiveDict
 
 
 class StreamTestCase(unittest.TestCase):
-    """Tests for modules in web.stream"""
+    """Tests for modules in wind.stream"""
     def setUp(self):
         pass
 

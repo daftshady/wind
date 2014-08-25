@@ -8,7 +8,7 @@
 """
 
 from wind import __version__
-from wind.web.stream import SocketStream
+from wind.stream import SocketStream
 from wind.exceptions import WindException
 from wind.datastructures import CaseInsensitiveDict
 from wind.web.codec import encode, to_str, decode_dict
