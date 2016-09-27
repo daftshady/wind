@@ -23,14 +23,3 @@ Usage sketch.
         server.run_simple('127.0.0.1', 9000)
 
 This usage interfaces are made for the purpose of testing performance.
-
-
-Note
-====
-It's currently under active development. 
-
-Because it's not released yet, using this framework in its current state is at your own risk.
-
-I don't recommend you to use this framework now because it's in fucking unstable state.
-
-I will update whole README when it's released.
