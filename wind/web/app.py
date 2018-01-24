@@ -20,8 +20,9 @@ from wind.datastructures import FlexibleDeque
 from wind.exceptions import ApplicationError, HTTPError
 
 
-def path(handler, route='', methods=[]):
+def path(handler, route, methods):
     """Api method for providing intuition to url binding."""
+    # TODO: Validate parameters
     return Path(handler, route=route, methods=methods)
 
 
@@ -45,9 +46,9 @@ class WindApp(object):
                 self.finish()
 
         app = WindApp([
-                path(hello_wind, route='/', methods=['get']),
-                path(HelloResource, route='/resource', methods=['get'])
-                ])
+            path(hello_wind, route='/', methods=['get']),
+            path(HelloResource, route='/resource', methods=['get'])
+        ])
         server = HTTPServer(app=app)
         server.run_simple('127.0.0.1', 9000)
 
@@ -67,7 +68,7 @@ class WindApp(object):
             # (Not only returning False stupidly)
 
             # Let's make a path to error.
-            path = Path(self._error_handler, error_path=True)
+            path = Path(self._error_handler)
 
         # Synchronously run handling method. (Temporarily)
         path.follow(conn, request)
@@ -77,13 +78,12 @@ class WindApp(object):
 
 
 class PathDispatcher(object):
-    def __init__(self, urls=[]):
+    def __init__(self, urls):
         try:
             self._paths = []
             self._paths.extend(urls)
-        except (ValueError, TypeError):
-            raise ApplicationError(
-                'Form should be `List` of `(handler, route, method)` `Tuple`.')
+        except TypeError:
+            raise ApplicationError('PathDispatcher wants `list` of `Path`')
 
     def lookup(self, url):
         for path in self._paths:
@@ -95,12 +95,13 @@ class Path(object):
     """Contains information needed for handling HTTP request."""
 
     def __init__(
-            self, handler, route=None,
-            methods=[], error_path=False, **kwargs):
+            self, handler, route=None, methods=None, **kwargs):
         """Initialize path.
         @param handler:
             Method or Class inherits from `Resource`.
-        @param route: URI path when serving HTTP request.
+        @param route:
+            URI path when serving HTTP request.
+            If it's None, this path is considered as `error path`.
         @param methods:
             Allowed HTTP methods. `List` of string indicating method.
 
@@ -110,7 +111,7 @@ class Path(object):
         if isinstance(handler, (types.FunctionType, types.MethodType)):
             handler = self._wrap_handler(handler)
         self._handler = handler
-        self._error_path = error_path
+        self._error_path = route is None
         if not self._error_path:
             self._route = self._process_route(route)
             self._methods = \

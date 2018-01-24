@@ -79,10 +79,11 @@ class FlexibleDeque(collections.deque):
 
 class FlexibleDict(collections.MutableMapping):
     """Provides flexible transformations to dict `key`"""
-    def __init__(self, dict_={}):
+    def __init__(self, dict_=None):
         # `_store` stores (key, value) tuple on each key.
         self._store = {}
-        self.update(dict_)
+        if dict_ is not None:
+            self.update(dict_)
 
     def _transform(self, key):
         return key
